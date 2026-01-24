@@ -5,12 +5,21 @@ export default defineSchema({
   users: defineTable({
     name: v.string(),
     email: v.string(),
+    password: v.optional(v.string()), // Hashed password for email auth
+    image: v.optional(v.string()), // Profile image URL
+    provider: v.optional(v.string()), // "google" | "credentials"
+    providerId: v.optional(v.string()), // OAuth provider ID
+    emailVerified: v.optional(v.boolean()),
     createdAt: v.optional(v.number()),
-  }).index("by_email", ["email"]),
+    updatedAt: v.optional(v.number()),
+  })
+    .index("by_email", ["email"])
+    .index("by_provider", ["provider", "providerId"]),
 
   preferences: defineTable({
     email: v.string(),
     answers: v.any(),
+    phase: v.optional(v.number()), // 1 or 2 to track questionnaire phase
     complete: v.boolean(),
     updatedAt: v.optional(v.number()),
   }).index("by_email", ["email"]),

@@ -8,8 +8,7 @@
  * @module
  */
 
-import type * as memory from "../memory.js";
-import type * as memoryFiles from "../memoryFiles.js";
+import type * as memories from "../memories.js";
 import type * as preferences from "../preferences.js";
 import type * as projects from "../projects.js";
 import type * as skills from "../skills.js";
@@ -22,8 +21,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  memory: typeof memory;
-  memoryFiles: typeof memoryFiles;
+  memories: typeof memories;
   preferences: typeof preferences;
   projects: typeof projects;
   skills: typeof skills;

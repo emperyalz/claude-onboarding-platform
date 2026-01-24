@@ -2,10 +2,11 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 export const savePreferences = mutation({
-  args: { 
-    email: v.string(), 
+  args: {
+    email: v.string(),
     answers: v.any(),
-    complete: v.boolean() 
+    complete: v.boolean(),
+    phase: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
@@ -14,10 +15,11 @@ export const savePreferences = mutation({
       .first();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { 
+      await ctx.db.patch(existing._id, {
         answers: args.answers,
         complete: args.complete,
-        updatedAt: Date.now() 
+        phase: args.phase,
+        updatedAt: Date.now()
       });
       return existing._id;
     }
@@ -26,6 +28,7 @@ export const savePreferences = mutation({
       email: args.email,
       answers: args.answers,
       complete: args.complete,
+      phase: args.phase,
       updatedAt: Date.now(),
     });
   },
@@ -40,10 +43,11 @@ export const getPreferences = query({
       .first();
 
     if (!prefs) return null;
-    
+
     return {
       answers: prefs.answers,
       complete: prefs.complete,
+      phase: prefs.phase,
     };
   },
 });
