@@ -572,171 +572,167 @@ export default function DashboardPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Personal Preferences Tab */}
         {activeTab === 'preferences' && (
-          <div className="max-w-2xl mx-auto">
-            {!preferencesComplete ? (
-              <div className="card">
-                <div className="mb-6">
-                  <div className="flex justify-between items-center text-sm text-gray-500 mb-2">
-                    <span>
-                      Phase {phase}: Question {currentQuestion + 1} of {currentQuestions.length}
-                    </span>
-                    <span className="text-claude-orange font-medium">
-                      {phase === 1 ? 'Core Questions' : `${answers.role || 'Role'}-Specific`}
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full">
-                    <div
-                      className="h-2 bg-claude-orange rounded-full transition-all"
-                      style={{
-                        width: `${((currentQuestion + 1) / currentQuestions.length) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    Total progress: {phase === 1 ? currentQuestion + 1 : phase1Questions.length + currentQuestion + 1} of {phase1Questions.length + currentQuestions.length}
-                  </div>
-                </div>
+          <div className="max-w-3xl mx-auto">
+            {/* Progress Header */}
+            <div className="card mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <h2 className="text-lg font-semibold">
+                  {phase === 1 ? 'Phase 1: Core Questions' : `Phase 2: ${answers.role || 'Role'}-Specific Questions`}
+                </h2>
+                <span className="text-sm text-claude-orange font-medium">
+                  {Object.keys(answers).length} answered
+                </span>
+              </div>
+              <div className="h-2 bg-gray-200 rounded-full">
+                <div
+                  className="h-2 bg-claude-orange rounded-full transition-all"
+                  style={{
+                    width: `${(Object.keys(answers).length / (phase1Questions.length + (phase2QuestionsByRole[answers.role as string]?.length || 15))) * 100}%`,
+                  }}
+                />
+              </div>
+              {phase === 2 && (
+                <button
+                  className="text-sm text-gray-500 hover:text-claude-orange mt-2"
+                  onClick={() => setPhase(1)}
+                >
+                  ← Back to Core Questions
+                </button>
+              )}
+            </div>
 
-                <div className="flex items-start justify-between mb-4">
-                  <h2 className="text-xl font-semibold">{currentQuestions[currentQuestion].question}</h2>
-                  <button
-                    onClick={fetchAISuggestion}
-                    disabled={isLoadingSuggestion}
-                    className="flex items-center gap-1 text-sm text-claude-orange hover:text-claude-orange/80 transition-colors ml-4"
-                    title="Get AI suggestion"
-                  >
-                    {isLoadingSuggestion ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Wand2 className="w-4 h-4" />
-                    )}
-                    <span className="hidden sm:inline">AI Suggest</span>
-                  </button>
-                </div>
-
-                {aiSuggestion && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
-                    <div className="flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-claude-orange mt-0.5" />
-                      <div>
-                        <p className="text-sm text-gray-700">{aiSuggestion}</p>
-                        {currentQuestions[currentQuestion].type === 'text' || currentQuestions[currentQuestion].type === 'textarea' ? (
-                          <button
-                            onClick={() => handleAnswerChange(currentQuestions[currentQuestion].id, aiSuggestion)}
-                            className="text-xs text-claude-orange hover:underline mt-1"
-                          >
-                            Use this suggestion
-                          </button>
-                        ) : null}
-                      </div>
+            {/* All Questions on One Page */}
+            <div className="space-y-4">
+              {currentQuestions.map((q, index) => (
+                <div key={q.id} className="card">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-start gap-3">
+                      <span className="flex-shrink-0 w-8 h-8 bg-claude-orange/10 text-claude-orange rounded-full flex items-center justify-center text-sm font-medium">
+                        {index + 1}
+                      </span>
+                      <h3 className="text-base font-medium pt-1">{q.question}</h3>
                     </div>
+                    {answers[q.id] && (
+                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    )}
                   </div>
-                )}
 
-                {currentQuestions[currentQuestion].type === 'select' && (
-                  <div className="space-y-2">
-                    {currentQuestions[currentQuestion].options?.map(option => (
-                      <button
-                        key={option}
-                        className={`w-full text-left px-4 py-3 rounded-lg border transition-colors ${
-                          answers[currentQuestions[currentQuestion].id] === option
-                            ? 'border-claude-orange bg-orange-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => handleAnswerChange(currentQuestions[currentQuestion].id, option)}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {currentQuestions[currentQuestion].type === 'multiselect' && (
-                  <div className="space-y-2">
-                    {currentQuestions[currentQuestion].options?.map(option => {
-                      const selected = ((answers[currentQuestions[currentQuestion].id] as string[]) || []).includes(option);
-                      return (
+                  {q.type === 'select' && (
+                    <div className="ml-11 flex flex-wrap gap-2">
+                      {q.options?.map(option => (
                         <button
                           key={option}
-                          className={`w-full text-left px-4 py-3 rounded-lg border transition-colors flex items-center gap-3 ${
-                            selected
-                              ? 'border-claude-orange bg-orange-50'
-                              : 'border-gray-200 hover:border-gray-300'
+                          className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
+                            answers[q.id] === option
+                              ? 'border-claude-orange bg-claude-orange text-white'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
                           }`}
-                          onClick={() => {
-                            const current = (answers[currentQuestions[currentQuestion].id] as string[]) || [];
-                            const updated = selected
-                              ? current.filter(v => v !== option)
-                              : [...current, option];
-                            handleAnswerChange(currentQuestions[currentQuestion].id, updated);
-                          }}
+                          onClick={() => handleAnswerChange(q.id, option)}
                         >
-                          <div
-                            className={`w-5 h-5 rounded border flex items-center justify-center ${
-                              selected ? 'bg-claude-orange border-claude-orange' : 'border-gray-300'
-                            }`}
-                          >
-                            {selected && <Check className="w-3 h-3 text-white" />}
-                          </div>
                           {option}
                         </button>
-                      );
-                    })}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
 
-                {currentQuestions[currentQuestion].type === 'text' && (
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Type your answer..."
-                    value={(answers[currentQuestions[currentQuestion].id] as string) || ''}
-                    onChange={e => handleAnswerChange(currentQuestions[currentQuestion].id, e.target.value)}
-                  />
-                )}
+                  {q.type === 'multiselect' && (
+                    <div className="ml-11 flex flex-wrap gap-2">
+                      {q.options?.map(option => {
+                        const selected = ((answers[q.id] as string[]) || []).includes(option);
+                        return (
+                          <button
+                            key={option}
+                            className={`px-4 py-2 rounded-lg border text-sm transition-colors flex items-center gap-2 ${
+                              selected
+                                ? 'border-claude-orange bg-claude-orange text-white'
+                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                            }`}
+                            onClick={() => {
+                              const current = (answers[q.id] as string[]) || [];
+                              const updated = selected
+                                ? current.filter(v => v !== option)
+                                : [...current, option];
+                              handleAnswerChange(q.id, updated);
+                            }}
+                          >
+                            {selected && <Check className="w-3 h-3" />}
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                {currentQuestions[currentQuestion].type === 'textarea' && (
-                  <textarea
-                    className="input-field min-h-[120px]"
-                    placeholder="Type your answer..."
-                    value={(answers[currentQuestions[currentQuestion].id] as string) || ''}
-                    onChange={e => handleAnswerChange(currentQuestions[currentQuestion].id, e.target.value)}
-                  />
-                )}
+                  {q.type === 'text' && (
+                    <div className="ml-11">
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="Type your answer..."
+                        value={(answers[q.id] as string) || ''}
+                        onChange={e => handleAnswerChange(q.id, e.target.value)}
+                      />
+                    </div>
+                  )}
 
-                <div className="flex justify-between mt-6">
-                  <button
-                    className="btn-secondary"
-                    onClick={handlePrevQuestion}
-                    disabled={currentQuestion === 0 && phase === 1}
-                  >
-                    Previous
-                  </button>
-                  <button className="btn-primary" onClick={handleNextQuestion}>
-                    {phase === 2 && currentQuestion === currentQuestions.length - 1
-                      ? 'Complete'
-                      : phase === 1 && currentQuestion === phase1Questions.length - 1
-                      ? 'Continue to Phase 2'
-                      : 'Next'}
-                  </button>
+                  {q.type === 'textarea' && (
+                    <div className="ml-11">
+                      <textarea
+                        className="input-field min-h-[80px]"
+                        placeholder="Type your answer..."
+                        value={(answers[q.id] as string) || ''}
+                        onChange={e => handleAnswerChange(q.id, e.target.value)}
+                      />
+                    </div>
+                  )}
                 </div>
-              </div>
-            ) : (
-              <div className="card text-center">
+              ))}
+            </div>
+
+            {/* Save/Continue Button */}
+            <div className="mt-6 flex justify-end gap-4">
+              {phase === 1 ? (
+                <button
+                  className="btn-primary"
+                  onClick={async () => {
+                    if (userEmail) {
+                      await savePreferences({ email: userEmail, answers, complete: false, phase: 1 });
+                      toast.success('Phase 1 saved!');
+                    }
+                    setPhase(2);
+                  }}
+                >
+                  Save & Continue to Phase 2 →
+                </button>
+              ) : (
+                <button
+                  className="btn-primary"
+                  onClick={async () => {
+                    if (userEmail) {
+                      await savePreferences({ email: userEmail, answers, complete: true, phase: 2 });
+                      toast.success('All preferences saved!');
+                      setPreferencesComplete(true);
+                    }
+                  }}
+                >
+                  Save All Preferences
+                </button>
+              )}
+            </div>
+
+            {/* Completion Message */}
+            {preferencesComplete && (
+              <div className="card text-center mt-6">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Check className="w-8 h-8 text-green-600" />
                 </div>
                 <h2 className="text-xl font-semibold mb-2">Preferences Complete!</h2>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 mb-4">
                   Your personalization is ready. Generate your CLAUDE.md file in the Memory Files tab.
                 </p>
                 <button
                   className="btn-secondary"
-                  onClick={() => {
-                    setPreferencesComplete(false);
-                    setPhase(1);
-                    setCurrentQuestion(0);
-                  }}
+                  onClick={() => setPreferencesComplete(false)}
                 >
                   Edit Preferences
                 </button>
