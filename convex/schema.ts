@@ -61,4 +61,16 @@ export default defineSchema({
     createdAt: v.optional(v.number()),
     updatedAt: v.optional(v.number()),
   }).index("by_email", ["email"]),
+
+  // Sessions table for saving progress across all tabs
+  sessions: defineTable({
+    email: v.string(),
+    name: v.string(), // User-defined session name
+    tabType: v.string(), // "preferences" | "memory" | "skills" | "files" | "projects"
+    data: v.any(), // Tab-specific data (answers, memories, skills, etc.)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_email", ["email"])
+    .index("by_email_and_tab", ["email", "tabType"]),
 });

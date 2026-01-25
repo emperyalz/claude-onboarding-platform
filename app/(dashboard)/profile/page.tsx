@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
@@ -16,7 +17,21 @@ import {
   Database,
   FileText,
   ChevronRight,
+  FolderOpen,
+  Trash2,
+  Edit3,
+  X,
+  Check,
 } from 'lucide-react';
+
+interface Session {
+  _id: Id<'sessions'>;
+  name: string;
+  tabType: string;
+  data: unknown;
+  createdAt: number;
+  updatedAt: number;
+}
 
 export default function ProfilePage() {
   const { data: session, update: updateSession } = useSession();
@@ -30,15 +45,72 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // Session management state
+  const [editingSessionId, setEditingSessionId] = useState<Id<'sessions'> | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [sessionFilter, setSessionFilter] = useState<string>('all');
+
   // Convex queries
   const userData = useQuery(api.users.getUser, userEmail ? { email: userEmail } : 'skip');
   const preferences = useQuery(api.preferences.getPreferences, userEmail ? { email: userEmail } : 'skip');
   const memories = useQuery(api.memories.getMemories, userEmail ? { email: userEmail } : 'skip');
   const skills = useQuery(api.skills.getSkills, userEmail ? { email: userEmail } : 'skip');
   const projects = useQuery(api.projects.getProjects, userEmail ? { email: userEmail } : 'skip');
+  const sessions = useQuery(api.sessions.getSessions, userEmail ? { email: userEmail } : 'skip') as Session[] | undefined;
 
   // Convex mutations
   const updateUser = useMutation(api.users.updateUser);
+  const renameSession = useMutation(api.sessions.renameSession);
+  const deleteSession = useMutation(api.sessions.deleteSession);
+
+  const handleRenameSession = async (sessionId: Id<'sessions'>) => {
+    if (!editingName.trim()) return;
+    try {
+      await renameSession({ sessionId, name: editingName.trim() });
+      toast.success('Session renamed!');
+      setEditingSessionId(null);
+      setEditingName('');
+    } catch (error) {
+      console.error('Failed to rename session:', error);
+      toast.error('Failed to rename session');
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: Id<'sessions'>, name: string) => {
+    if (!confirm(`Delete session "${name}"? This cannot be undone.`)) return;
+    try {
+      await deleteSession({ sessionId });
+      toast.success('Session deleted');
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      toast.error('Failed to delete session');
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getTabLabel = (tabType: string) => {
+    const labels: Record<string, string> = {
+      preferences: 'Personal Preferences',
+      memory: 'Manage Memory',
+      skills: 'Claude Skills',
+      files: 'Memory Files',
+      projects: 'Develop Projects',
+    };
+    return labels[tabType] || tabType;
+  };
+
+  const filteredSessions = sessions?.filter(s =>
+    sessionFilter === 'all' || s.tabType === sessionFilter
+  );
 
   const isGoogleUser = userData?.provider === 'google';
 
@@ -281,6 +353,136 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Session Management */}
+          <div className="card">
+            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-claude-orange" />
+              Saved Sessions
+            </h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Manage your saved progress across all tabs. Load any session to continue where you left off.
+            </p>
+
+            {/* Filter */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setSessionFilter('all')}
+                className={`px-3 py-1.5 rounded-lg text-sm ${
+                  sessionFilter === 'all'
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All ({sessions?.length || 0})
+              </button>
+              {['preferences', 'memory', 'skills', 'files', 'projects'].map((tab) => {
+                const count = sessions?.filter(s => s.tabType === tab).length || 0;
+                if (count === 0) return null;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setSessionFilter(tab)}
+                    className={`px-3 py-1.5 rounded-lg text-sm ${
+                      sessionFilter === tab
+                        ? 'bg-orange-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {getTabLabel(tab)} ({count})
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Sessions List */}
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {filteredSessions && filteredSessions.length > 0 ? (
+                filteredSessions.map((session) => (
+                  <div
+                    key={session._id}
+                    className="p-4 border rounded-lg hover:border-orange-300 transition-colors"
+                  >
+                    {editingSessionId === session._id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingName}
+                          onChange={(e) => setEditingName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleRenameSession(session._id)}
+                          className="flex-1 px-3 py-1.5 border border-gray-300 rounded focus:ring-2 focus:ring-orange-600"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleRenameSession(session._id)}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingSessionId(null);
+                            setEditingName('');
+                          }}
+                          className="p-1.5 text-gray-400 hover:bg-gray-100 rounded"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{session.name}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                              {getTabLabel(session.tabType)}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Updated {formatDate(session.updatedAt)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Link
+                            href="/dashboard"
+                            className="p-2 text-orange-600 hover:bg-orange-50 rounded"
+                            title="Go to Dashboard"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setEditingSessionId(session._id);
+                              setEditingName(session.name);
+                            }}
+                            className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded"
+                            title="Rename"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSession(session._id, session.name)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FolderOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>No saved sessions yet</p>
+                  <p className="text-sm mt-1">
+                    Use the "Save Progress" button on any tab to save your work.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Stats */}

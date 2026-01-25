@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import toast from 'react-hot-toast';
+import SessionSelector from '../../../components/SessionSelector';
 import {
   User,
   Settings,
@@ -575,8 +576,25 @@ export default function DashboardPage() {
           <div>
             {/* Header Card */}
             <div className="bg-white rounded-xl border p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-2">Personal Preferences - Adaptive Questionnaire</h2>
-              <p className="text-gray-600 mb-4">Answer 15 discovery questions, then get personalized follow-ups!</p>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Personal Preferences - Adaptive Questionnaire</h2>
+                  <p className="text-gray-600">Answer 15 discovery questions, then get personalized follow-ups!</p>
+                </div>
+                {userEmail && (
+                  <SessionSelector
+                    userEmail={userEmail}
+                    tabType="preferences"
+                    currentData={{ answers, phase }}
+                    onLoadSession={(data: unknown) => {
+                      const sessionData = data as { answers: Record<string, string | string[]>; phase: 1 | 2 };
+                      setAnswers(sessionData.answers || {});
+                      setPhase(sessionData.phase || 1);
+                    }}
+                    tabLabel="session"
+                  />
+                )}
+              </div>
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
                 <p className="text-sm text-blue-900 font-medium">How It Works:</p>
                 <p className="text-sm text-blue-800">Phase 1: Answer 15 questions → Phase 2: AI generates personalized follow-ups → Phase 3: Export</p>
@@ -745,8 +763,25 @@ export default function DashboardPage() {
         {activeTab === 'memory' && (
           <div>
             <div className="bg-white rounded-xl border p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-2">Manage & Refine Memory</h2>
-              <p className="text-gray-600 mb-4">Paste your existing Claude memory, and AI will help you refine it!</p>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Manage & Refine Memory</h2>
+                  <p className="text-gray-600">Paste your existing Claude memory, and AI will help you refine it!</p>
+                </div>
+                {userEmail && (
+                  <SessionSelector
+                    userEmail={userEmail}
+                    tabType="memory"
+                    currentData={{ memories, newMemory }}
+                    onLoadSession={(data: unknown) => {
+                      const sessionData = data as { memories: MemoryEntry[]; newMemory: { category: string; content: string } };
+                      setMemories(sessionData.memories || []);
+                      setNewMemory(sessionData.newMemory || { category: 'Work', content: '' });
+                    }}
+                    tabLabel="memory session"
+                  />
+                )}
+              </div>
 
               <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
                 <p className="text-sm text-blue-900 font-medium">How it works:</p>
@@ -873,8 +908,26 @@ QueXopa demonstrates strong technical curiosity...`}
         {activeTab === 'skills' && (
           <div>
             <div className="bg-white rounded-xl border p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-2">Claude Skills Builder</h2>
-              <p className="text-gray-600">Create custom skills or use templates</p>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Claude Skills Builder</h2>
+                  <p className="text-gray-600">Create custom skills or use templates</p>
+                </div>
+                {userEmail && (
+                  <SessionSelector
+                    userEmail={userEmail}
+                    tabType="skills"
+                    currentData={{ skills, newSkill, showSkillForm }}
+                    onLoadSession={(data: unknown) => {
+                      const sessionData = data as { skills: Skill[]; newSkill: { name: string; description: string; template: string }; showSkillForm: boolean };
+                      setSkills(sessionData.skills || defaultSkills);
+                      setNewSkill(sessionData.newSkill || { name: '', description: '', template: '' });
+                      setShowSkillForm(sessionData.showSkillForm || false);
+                    }}
+                    tabLabel="skill session"
+                  />
+                )}
+              </div>
             </div>
 
             {/* AI Generator */}
@@ -973,8 +1026,24 @@ QueXopa demonstrates strong technical curiosity...`}
         {activeTab === 'files' && (
           <div>
             <div className="bg-white rounded-xl border p-6 mb-6">
-              <h2 className="text-2xl font-bold mb-2">Memory Files (CLAUDE.md)</h2>
-              <p className="text-gray-600 mb-4">Create global or project-specific memory files</p>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Memory Files (CLAUDE.md)</h2>
+                  <p className="text-gray-600">Create global or project-specific memory files</p>
+                </div>
+                {userEmail && (
+                  <SessionSelector
+                    userEmail={userEmail}
+                    tabType="files"
+                    currentData={{ generatedFile }}
+                    onLoadSession={(data: unknown) => {
+                      const sessionData = data as { generatedFile: string };
+                      setGeneratedFile(sessionData.generatedFile || '');
+                    }}
+                    tabLabel="file session"
+                  />
+                )}
+              </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                 <p className="text-sm text-blue-900 font-medium mb-2">📄 What are Memory Files?</p>
@@ -1057,7 +1126,7 @@ QueXopa demonstrates strong technical curiosity...`}
 
         {/* Projects Tab - Develop Projects */}
         {activeTab === 'projects' && (
-          <DevelopProjectsTab />
+          <DevelopProjectsTab userEmail={userEmail} />
         )}
       </div>
     </>
@@ -1065,14 +1134,39 @@ QueXopa demonstrates strong technical curiosity...`}
 }
 
 // TAB 5: Develop Projects - exact match to original design
-function DevelopProjectsTab() {
+function DevelopProjectsTab({ userEmail }: { userEmail: string }) {
   const [showUpload, setShowUpload] = useState(false);
+  const [projectContext, setProjectContext] = useState(`# Project Context
+
+## Purpose
+Customer analytics dashboard for SaaS companies...
+
+## Goals
+- Real-time metrics visualization
+- Custom report builder`);
 
   return (
     <div className="grid grid-cols-12 gap-6">
       <div className="col-span-3">
         <div className="bg-white rounded-xl border p-6">
-          <h3 className="font-bold mb-4">Projects</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold">Projects</h3>
+          </div>
+          {userEmail && (
+            <div className="mb-4">
+              <SessionSelector
+                userEmail={userEmail}
+                tabType="projects"
+                currentData={{ projectContext, showUpload }}
+                onLoadSession={(data: unknown) => {
+                  const sessionData = data as { projectContext: string; showUpload: boolean };
+                  setProjectContext(sessionData.projectContext || '');
+                  setShowUpload(sessionData.showUpload || false);
+                }}
+                tabLabel="project session"
+              />
+            </div>
+          )}
           <div className="p-3 bg-orange-600 text-white rounded-lg mb-2 cursor-pointer">📁 SaaS Dashboard</div>
           <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">📁 E-commerce</div>
         </div>
@@ -1107,14 +1201,13 @@ function DevelopProjectsTab() {
             </div>
           )}
 
-          <textarea rows={6} placeholder="Or write manually..." className="w-full px-4 py-3 border rounded-lg" defaultValue={`# Project Context
-
-## Purpose
-Customer analytics dashboard for SaaS companies...
-
-## Goals
-- Real-time metrics visualization
-- Custom report builder`} />
+          <textarea
+            rows={6}
+            placeholder="Or write manually..."
+            className="w-full px-4 py-3 border rounded-lg"
+            value={projectContext}
+            onChange={(e) => setProjectContext(e.target.value)}
+          />
         </div>
 
         {/* Schema Section */}

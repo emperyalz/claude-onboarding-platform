@@ -11,6 +11,7 @@
 import type * as memories from "../memories.js";
 import type * as preferences from "../preferences.js";
 import type * as projects from "../projects.js";
+import type * as sessions from "../sessions.js";
 import type * as skills from "../skills.js";
 import type * as users from "../users.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   memories: typeof memories;
   preferences: typeof preferences;
   projects: typeof projects;
+  sessions: typeof sessions;
   skills: typeof skills;
   users: typeof users;
 }>;
