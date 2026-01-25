@@ -569,175 +569,169 @@ export default function DashboardPage() {
       </nav>
 
       {/* Content */}
-      <div className="max-w-6xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Personal Preferences Tab */}
         {activeTab === 'preferences' && (
-          <div className="max-w-3xl mx-auto">
-            {/* Progress Header */}
-            <div className="card mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="text-lg font-semibold">
-                  {phase === 1 ? 'Phase 1: Core Questions' : `Phase 2: ${answers.role || 'Role'}-Specific Questions`}
-                </h2>
-                <span className="text-sm text-claude-orange font-medium">
-                  {Object.keys(answers).length} answered
-                </span>
+          <div>
+            {/* Header Card */}
+            <div className="bg-white rounded-xl border p-6 mb-6">
+              <h2 className="text-2xl font-bold mb-2">Personal Preferences - Adaptive Questionnaire</h2>
+              <p className="text-gray-600 mb-4">Answer 15 discovery questions, then get personalized follow-ups!</p>
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p className="text-sm text-blue-900 font-medium">How It Works:</p>
+                <p className="text-sm text-blue-800">Phase 1: Answer 15 questions → Phase 2: AI generates personalized follow-ups → Phase 3: Export</p>
               </div>
-              <div className="h-2 bg-gray-200 rounded-full">
-                <div
-                  className="h-2 bg-claude-orange rounded-full transition-all"
-                  style={{
-                    width: `${(Object.keys(answers).length / (phase1Questions.length + (phase2QuestionsByRole[answers.role as string]?.length || 15))) * 100}%`,
-                  }}
-                />
-              </div>
-              {phase === 2 && (
-                <button
-                  className="text-sm text-gray-500 hover:text-claude-orange mt-2"
-                  onClick={() => setPhase(1)}
-                >
-                  ← Back to Core Questions
-                </button>
-              )}
             </div>
 
-            {/* All Questions on One Page */}
-            <div className="space-y-4">
-              {currentQuestions.map((q, index) => (
-                <div key={q.id} className="card">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex-shrink-0 w-8 h-8 bg-claude-orange/10 text-claude-orange rounded-full flex items-center justify-center text-sm font-medium">
-                        {index + 1}
-                      </span>
-                      <h3 className="text-base font-medium pt-1">{q.question}</h3>
-                    </div>
-                    {answers[q.id] && (
-                      <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    )}
+            {/* Questions */}
+            <div className="space-y-6">
+              {/* Section Headers and Questions */}
+              {phase === 1 && (
+                <>
+                  {/* Section 1: About You */}
+                  <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+                    <h3 className="font-bold text-orange-900">Section 1: About You</h3>
                   </div>
+                  {phase1Questions.slice(0, 3).map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 1}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
 
-                  {q.type === 'select' && (
-                    <div className="ml-11 flex flex-wrap gap-2">
-                      {q.options?.map(option => (
-                        <button
-                          key={option}
-                          className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
-                            answers[q.id] === option
-                              ? 'border-claude-orange bg-claude-orange text-white'
-                              : 'border-gray-200 hover:border-gray-300 bg-white'
-                          }`}
-                          onClick={() => handleAnswerChange(q.id, option)}
-                        >
-                          {option}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* Section 2: How You Use Claude */}
+                  <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+                    <h3 className="font-bold text-orange-900">Section 2: How You Use Claude</h3>
+                  </div>
+                  {phase1Questions.slice(3, 5).map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 4}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
 
-                  {q.type === 'multiselect' && (
-                    <div className="ml-11 flex flex-wrap gap-2">
-                      {q.options?.map(option => {
-                        const selected = ((answers[q.id] as string[]) || []).includes(option);
-                        return (
-                          <button
-                            key={option}
-                            className={`px-4 py-2 rounded-lg border text-sm transition-colors flex items-center gap-2 ${
-                              selected
-                                ? 'border-claude-orange bg-claude-orange text-white'
-                                : 'border-gray-200 hover:border-gray-300 bg-white'
-                            }`}
-                            onClick={() => {
-                              const current = (answers[q.id] as string[]) || [];
-                              const updated = selected
-                                ? current.filter(v => v !== option)
-                                : [...current, option];
-                              handleAnswerChange(q.id, updated);
-                            }}
-                          >
-                            {selected && <Check className="w-3 h-3" />}
-                            {option}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  {/* Section 3: Your Work Style */}
+                  <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+                    <h3 className="font-bold text-orange-900">Section 3: Your Work Style</h3>
+                  </div>
+                  {phase1Questions.slice(5, 8).map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 6}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
 
-                  {q.type === 'text' && (
-                    <div className="ml-11">
-                      <input
-                        type="text"
-                        className="input-field"
-                        placeholder="Type your answer..."
-                        value={(answers[q.id] as string) || ''}
-                        onChange={e => handleAnswerChange(q.id, e.target.value)}
-                      />
-                    </div>
-                  )}
+                  {/* Section 4: Communication Preferences */}
+                  <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+                    <h3 className="font-bold text-orange-900">Section 4: Communication Preferences</h3>
+                  </div>
+                  {phase1Questions.slice(8, 12).map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 9}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
 
-                  {q.type === 'textarea' && (
-                    <div className="ml-11">
-                      <textarea
-                        className="input-field min-h-[80px]"
-                        placeholder="Type your answer..."
-                        value={(answers[q.id] as string) || ''}
-                        onChange={e => handleAnswerChange(q.id, e.target.value)}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Save/Continue Button */}
-            <div className="mt-6 flex justify-end gap-4">
-              {phase === 1 ? (
-                <button
-                  className="btn-primary"
-                  onClick={async () => {
-                    if (userEmail) {
-                      await savePreferences({ email: userEmail, answers, complete: false, phase: 1 });
-                      toast.success('Phase 1 saved!');
-                    }
-                    setPhase(2);
-                  }}
-                >
-                  Save & Continue to Phase 2 →
-                </button>
-              ) : (
-                <button
-                  className="btn-primary"
-                  onClick={async () => {
-                    if (userEmail) {
-                      await savePreferences({ email: userEmail, answers, complete: true, phase: 2 });
-                      toast.success('All preferences saved!');
-                      setPreferencesComplete(true);
-                    }
-                  }}
-                >
-                  Save All Preferences
-                </button>
+                  {/* Section 5: Additional Context */}
+                  <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded-r-lg">
+                    <h3 className="font-bold text-orange-900">Section 5: Additional Context</h3>
+                  </div>
+                  {phase1Questions.slice(12).map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 13}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
+                </>
               )}
-            </div>
 
-            {/* Completion Message */}
-            {preferencesComplete && (
-              <div className="card text-center mt-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-green-600" />
-                </div>
-                <h2 className="text-xl font-semibold mb-2">Preferences Complete!</h2>
-                <p className="text-gray-600 mb-4">
-                  Your personalization is ready. Generate your CLAUDE.md file in the Memory Files tab.
-                </p>
-                <button
-                  className="btn-secondary"
-                  onClick={() => setPreferencesComplete(false)}
-                >
-                  Edit Preferences
-                </button>
+              {/* Phase 2 Questions */}
+              {phase === 2 && (
+                <>
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg p-6">
+                    <h3 className="font-bold text-xl mb-2">Your Personalized Questions</h3>
+                    <p className="text-purple-100">Based on your role as {answers.role || 'your selection'}, here are questions tailored to YOU:</p>
+                  </div>
+                  <button
+                    className="text-sm text-gray-500 hover:text-claude-orange"
+                    onClick={() => setPhase(1)}
+                  >
+                    ← Back to Core Questions
+                  </button>
+                  {currentQuestions.map((q, i) => (
+                    <QuestionCard
+                      key={q.id}
+                      num={i + 1}
+                      question={q}
+                      answer={answers[q.id]}
+                      onAnswerChange={handleAnswerChange}
+                    />
+                  ))}
+                </>
+              )}
+
+              {/* Generate/Save Button */}
+              <div className="bg-purple-50 border border-purple-300 rounded-lg p-6 text-center">
+                {phase === 1 ? (
+                  <>
+                    <h3 className="font-bold text-lg mb-2">Ready for Phase 2?</h3>
+                    <p className="text-sm text-gray-700 mb-4">AI will generate personalized questions based on YOUR profile!</p>
+                    <button
+                      onClick={async () => {
+                        if (userEmail) {
+                          await savePreferences({ email: userEmail, answers, complete: false, phase: 1 });
+                          toast.success('Phase 1 saved!');
+                        }
+                        setPhase(2);
+                      }}
+                      className="px-8 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-bold"
+                    >
+                      Generate My Personalized Questions
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="font-bold text-lg mb-2 text-green-900">Complete!</h3>
+                    <p className="text-sm text-gray-700 mb-4">Your preferences have been captured.</p>
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={async () => {
+                          if (userEmail) {
+                            await savePreferences({ email: userEmail, answers, complete: true, phase: 2 });
+                            toast.success('All preferences saved!');
+                            setPreferencesComplete(true);
+                          }
+                        }}
+                        className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
+                      >
+                        Save All Preferences
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('files')}
+                        className="px-6 py-2.5 bg-white border border-green-600 text-green-600 hover:bg-green-50 rounded-lg font-medium"
+                      >
+                        Export as CLAUDE.md
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -1023,5 +1017,178 @@ export default function DashboardPage() {
         )}
       </div>
     </>
+  );
+}
+
+// Question Card Component - matches original design
+function QuestionCard({
+  num,
+  question,
+  answer,
+  onAnswerChange,
+}: {
+  num: number;
+  question: { id: string; question: string; type: string; options?: string[] };
+  answer: string | string[] | undefined;
+  onAnswerChange: (id: string, value: string | string[]) => void;
+}) {
+  const [showOther, setShowOther] = useState(false);
+  const [otherValue, setOtherValue] = useState('');
+
+  return (
+    <div className="bg-white rounded-lg border p-5 hover:border-orange-600 transition-colors">
+      <div className="flex items-start gap-3">
+        <div className="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-semibold flex-shrink-0">
+          {num}
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-medium mb-3">{question.question}</h3>
+
+          {/* Text with AI Suggest */}
+          {question.type === 'text' && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Type your answer..."
+                value={(answer as string) || ''}
+                onChange={e => onAnswerChange(question.id, e.target.value)}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
+              />
+              <button className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap">
+                <Sparkles className="w-4 h-4 text-orange-600" />
+                <span>AI Suggest</span>
+              </button>
+            </div>
+          )}
+
+          {/* Textarea */}
+          {question.type === 'textarea' && (
+            <textarea
+              placeholder="Type your answer..."
+              value={(answer as string) || ''}
+              onChange={e => onAnswerChange(question.id, e.target.value)}
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
+            />
+          )}
+
+          {/* Radio (select) */}
+          {question.type === 'select' && (
+            <div className="space-y-2">
+              {question.options?.map((opt, i) => (
+                <label
+                  key={i}
+                  className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    answer === opt ? 'border-orange-600 bg-orange-50' : 'hover:border-orange-600'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name={`q${question.id}`}
+                    checked={answer === opt}
+                    onChange={() => onAnswerChange(question.id, opt)}
+                    className="w-5 h-5 text-orange-600"
+                  />
+                  <span>{opt}</span>
+                </label>
+              ))}
+              {/* Other option */}
+              <label
+                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  showOther ? 'border-orange-600 bg-orange-50' : 'hover:border-orange-600'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={`q${question.id}`}
+                  checked={showOther}
+                  onChange={() => setShowOther(true)}
+                  className="w-5 h-5 text-orange-600"
+                />
+                <span>Other (please specify)</span>
+              </label>
+              {showOther && (
+                <div className="ml-8 flex gap-2">
+                  <span className="text-xl">✍️</span>
+                  <input
+                    type="text"
+                    placeholder="Please describe..."
+                    value={otherValue}
+                    onChange={e => {
+                      setOtherValue(e.target.value);
+                      onAnswerChange(question.id, e.target.value);
+                    }}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Checkbox (multiselect) */}
+          {question.type === 'multiselect' && (
+            <div className="space-y-2">
+              {question.options?.map((opt, i) => {
+                const selected = ((answer as string[]) || []).includes(opt);
+                return (
+                  <label
+                    key={i}
+                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selected ? 'border-orange-600 bg-orange-50' : 'hover:border-orange-600'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => {
+                        const current = (answer as string[]) || [];
+                        const updated = selected
+                          ? current.filter(v => v !== opt)
+                          : [...current, opt];
+                        onAnswerChange(question.id, updated);
+                      }}
+                      className="w-5 h-5 rounded text-orange-600"
+                    />
+                    <span>{opt}</span>
+                  </label>
+                );
+              })}
+              {/* Other option */}
+              <label
+                className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                  showOther ? 'border-orange-600 bg-orange-50' : 'hover:border-orange-600'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={showOther}
+                  onChange={() => setShowOther(!showOther)}
+                  className="w-5 h-5 rounded text-orange-600"
+                />
+                <span>Other (please specify)</span>
+              </label>
+              {showOther && (
+                <div className="ml-8 flex gap-2">
+                  <span className="text-xl">✍️</span>
+                  <input
+                    type="text"
+                    placeholder="Please describe..."
+                    value={otherValue}
+                    onChange={e => {
+                      setOtherValue(e.target.value);
+                      const current = (answer as string[]) || [];
+                      if (!current.includes(e.target.value) && e.target.value) {
+                        onAnswerChange(question.id, [...current.filter(v => v !== otherValue), e.target.value]);
+                      }
+                    }}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
