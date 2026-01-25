@@ -599,6 +599,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
 
@@ -613,6 +614,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
 
@@ -627,6 +629,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
 
@@ -641,6 +644,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
 
@@ -655,6 +659,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
                 </>
@@ -680,6 +685,7 @@ export default function DashboardPage() {
                       question={q}
                       answer={answers[q.id]}
                       onAnswerChange={handleAnswerChange}
+                      context={answers}
                     />
                   ))}
                 </>
@@ -1180,14 +1186,53 @@ function QuestionCard({
   question,
   answer,
   onAnswerChange,
+  context,
 }: {
   num: number;
   question: { id: string; question: string; type: string; options?: string[] };
   answer: string | string[] | undefined;
   onAnswerChange: (id: string, value: string | string[]) => void;
+  context?: Record<string, string | string[]>;
 }) {
   const [showOther, setShowOther] = useState(false);
   const [otherValue, setOtherValue] = useState('');
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+
+  const fetchAISuggestion = async () => {
+    setIsLoadingSuggestion(true);
+    setSuggestion(null);
+    try {
+      const response = await fetch('/api/claude/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: {
+            role: context?.role,
+            experience: context?.experience,
+            industry: context?.industry,
+            previousAnswers: context,
+          },
+          question: question.question,
+        }),
+      });
+      const data = await response.json();
+      if (data.suggestion) {
+        setSuggestion(data.suggestion);
+      }
+    } catch (error) {
+      console.error('Failed to get AI suggestion:', error);
+    } finally {
+      setIsLoadingSuggestion(false);
+    }
+  };
+
+  const applySuggestion = () => {
+    if (suggestion) {
+      onAnswerChange(question.id, suggestion);
+      setSuggestion(null);
+    }
+  };
 
   return (
     <div className="bg-white rounded-lg border p-5 hover:border-orange-600 transition-colors">
@@ -1200,30 +1245,104 @@ function QuestionCard({
 
           {/* Text with AI Suggest */}
           {question.type === 'text' && (
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Type your answer..."
-                value={(answer as string) || ''}
-                onChange={e => onAnswerChange(question.id, e.target.value)}
-                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
-              />
-              <button className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap">
-                <Sparkles className="w-4 h-4 text-orange-600" />
-                <span>AI Suggest</span>
-              </button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Type your answer..."
+                  value={(answer as string) || ''}
+                  onChange={e => onAnswerChange(question.id, e.target.value)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
+                />
+                <button
+                  onClick={fetchAISuggestion}
+                  disabled={isLoadingSuggestion}
+                  className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                >
+                  {isLoadingSuggestion ? (
+                    <Loader2 className="w-4 h-4 text-orange-600 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-orange-600" />
+                  )}
+                  <span>{isLoadingSuggestion ? 'Thinking...' : 'AI Suggest'}</span>
+                </button>
+              </div>
+              {suggestion && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">💡</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-purple-900 mb-2">{suggestion}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={applySuggestion}
+                          className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                        >
+                          Use this
+                        </button>
+                        <button
+                          onClick={() => setSuggestion(null)}
+                          className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Textarea */}
+          {/* Textarea with AI Suggest */}
           {question.type === 'textarea' && (
-            <textarea
-              placeholder="Type your answer..."
-              value={(answer as string) || ''}
-              onChange={e => onAnswerChange(question.id, e.target.value)}
-              rows={3}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
-            />
+            <div className="space-y-2">
+              <div className="flex gap-2 items-start">
+                <textarea
+                  placeholder="Type your answer..."
+                  value={(answer as string) || ''}
+                  onChange={e => onAnswerChange(question.id, e.target.value)}
+                  rows={3}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
+                />
+                <button
+                  onClick={fetchAISuggestion}
+                  disabled={isLoadingSuggestion}
+                  className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                >
+                  {isLoadingSuggestion ? (
+                    <Loader2 className="w-4 h-4 text-orange-600 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 text-orange-600" />
+                  )}
+                  <span>{isLoadingSuggestion ? 'Thinking...' : 'AI Suggest'}</span>
+                </button>
+              </div>
+              {suggestion && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">💡</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-purple-900 mb-2">{suggestion}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={applySuggestion}
+                          className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                        >
+                          Use this
+                        </button>
+                        <button
+                          onClick={() => setSuggestion(null)}
+                          className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Radio (select) */}
