@@ -1051,170 +1051,126 @@ QueXopa demonstrates strong technical curiosity...`}
 
         {/* Projects Tab - Develop Projects */}
         {activeTab === 'projects' && (
-          <div className="grid grid-cols-12 gap-6">
-            {/* Project List Sidebar */}
-            <div className="col-span-3">
-              <div className="bg-white rounded-xl border p-6">
-                <h3 className="font-bold mb-4">Projects</h3>
-                <div className="flex gap-2 mb-4">
-                  <input
-                    type="text"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-600"
-                    placeholder="New project"
-                    value={newProjectName}
-                    onChange={e => setNewProjectName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && createProject()}
-                  />
-                  <button onClick={createProject} className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {projects.map((project, index) => (
-                    <div
-                      key={index}
-                      onClick={() => setActiveProject(project)}
-                      className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${
-                        activeProject?.name === project.name
-                          ? 'bg-orange-600 text-white'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <span>📁</span> {project.name}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteProject(project.name);
-                        }}
-                        className={activeProject?.name === project.name ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  {projects.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No projects yet</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Project Editor */}
-            <div className="col-span-9 space-y-4">
-              {activeProject ? (
-                <>
-                  {/* Project Header */}
-                  <div className="bg-white rounded-xl border p-6">
-                    <h2 className="text-2xl font-bold mb-2">{activeProject.name}</h2>
-                    <div className="bg-gray-200 rounded-full h-2 mb-2">
-                      <div
-                        className="bg-orange-600 h-full rounded-full"
-                        style={{ width: `${(activeProject.sections.filter(s => s.content).length / activeProject.sections.length) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-600">
-                      {activeProject.sections.filter(s => s.content).length} of {activeProject.sections.length} sections completed
-                    </p>
-                  </div>
-
-                  {/* Section 1: Project Context */}
-                  <div className="bg-white rounded-lg border-2 border-orange-600 p-5">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-semibold text-lg">1. Project Context</h3>
-                      <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Generate with AI
-                      </button>
-                    </div>
-                    <textarea
-                      rows={6}
-                      placeholder="Describe your project context, purpose, and goals..."
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
-                      value={activeProject.sections[0]?.content || ''}
-                      onChange={e => updateProjectSection(0, e.target.value)}
-                    />
-                  </div>
-
-                  {/* Section: Data Schema */}
-                  <div className="bg-white rounded-lg border p-5">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-semibold text-lg">3. Data Schema</h3>
-                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
-                    </div>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                      <div className="text-4xl mb-3">📁</div>
-                      <p className="text-gray-700 font-medium mb-2">Upload Files or Describe</p>
-                      <p className="text-sm text-gray-600 mb-4">Upload: Database dumps, API responses, spreadsheets</p>
-                      <div className="flex gap-3 justify-center">
-                        <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
-                          Upload Files
-                        </button>
-                        <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                          Describe Instead
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-3">AI will analyze and generate schema</p>
-                    </div>
-                  </div>
-
-                  {/* Section: UX Guidelines */}
-                  <div className="bg-white rounded-lg border p-5">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-semibold text-lg">5. UX Guidelines</h3>
-                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
-                    </div>
-                    <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center">
-                      <div className="text-4xl mb-3">🎥</div>
-                      <p className="text-gray-700 font-medium mb-2">Upload User Flow Videos or Screenshots</p>
-                      <p className="text-sm text-gray-600 mb-4">AI will watch/analyze and generate UX guidelines</p>
-                      <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-                        Upload Videos/Screenshots
-                      </button>
-                      <p className="text-xs text-gray-500 mt-3">Supported: MP4, MOV, PNG, JPG</p>
-                    </div>
-                  </div>
-
-                  {/* Section: UI Guidelines */}
-                  <div className="bg-white rounded-lg border p-5">
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-semibold text-lg">6. UI Guidelines</h3>
-                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
-                    </div>
-                    <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center">
-                      <div className="text-4xl mb-3">🎨</div>
-                      <p className="text-gray-700 font-medium mb-2">Upload UI Screenshots You Like</p>
-                      <p className="text-sm text-gray-600 mb-4">AI will analyze: colors, spacing, typography, components</p>
-                      <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                        Upload UI Examples
-                      </button>
-                      <p className="text-xs text-gray-500 mt-3">AI generates design guidelines from your examples</p>
-                    </div>
-                  </div>
-
-                  {/* Export Button */}
-                  <div className="flex justify-end">
-                    <button
-                      onClick={exportProject}
-                      className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                      Export Project Docs
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="bg-white rounded-xl border p-16 text-center">
-                  <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">Select or create a project to get started</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <DevelopProjectsTab />
         )}
       </div>
     </>
+  );
+}
+
+// TAB 5: Develop Projects - exact match to original design
+function DevelopProjectsTab() {
+  const [showUpload, setShowUpload] = useState(false);
+
+  return (
+    <div className="grid grid-cols-12 gap-6">
+      <div className="col-span-3">
+        <div className="bg-white rounded-xl border p-6">
+          <h3 className="font-bold mb-4">Projects</h3>
+          <div className="p-3 bg-orange-600 text-white rounded-lg mb-2 cursor-pointer">📁 SaaS Dashboard</div>
+          <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">📁 E-commerce</div>
+        </div>
+      </div>
+
+      <div className="col-span-9 space-y-4">
+        <div className="bg-white rounded-xl border p-6">
+          <h2 className="text-2xl font-bold mb-2">SaaS Dashboard</h2>
+          <div className="bg-gray-200 rounded-full h-2 mb-2">
+            <div className="bg-orange-600 h-full rounded-full" style={{width: '33%'}}></div>
+          </div>
+          <p className="text-sm text-gray-600">2 of 6 sections completed</p>
+        </div>
+
+        {/* Context Section */}
+        <div className="bg-white rounded-lg border-2 border-orange-600 p-5">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="font-semibold text-lg">1. Project Context</h3>
+            <button onClick={() => setShowUpload(!showUpload)} className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2">
+              <span className="text-xl">✨</span>
+              Generate with AI
+            </button>
+          </div>
+
+          {showUpload && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-900 font-medium mb-3">Let AI write this section for you:</p>
+              <textarea placeholder="Describe your project... (e.g., 'A customer analytics dashboard for SaaS companies')" rows={3} className="w-full px-4 py-3 border rounded-lg mb-3" />
+              <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+                Generate Context Section
+              </button>
+            </div>
+          )}
+
+          <textarea rows={6} placeholder="Or write manually..." className="w-full px-4 py-3 border rounded-lg" defaultValue={`# Project Context
+
+## Purpose
+Customer analytics dashboard for SaaS companies...
+
+## Goals
+- Real-time metrics visualization
+- Custom report builder`} />
+        </div>
+
+        {/* Schema Section */}
+        <div className="bg-white rounded-lg border p-5">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="font-semibold text-lg">3. Data Schema</h3>
+            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
+          </div>
+
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <div className="text-4xl mb-3">📁</div>
+            <p className="text-gray-700 font-medium mb-2">Upload Files or Describe</p>
+            <p className="text-sm text-gray-600 mb-4">Upload: Database dumps, API responses, spreadsheets</p>
+            <div className="flex gap-3 justify-center">
+              <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                Upload Files
+              </button>
+              <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">
+                Describe Instead
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">AI will analyze and generate schema</p>
+          </div>
+        </div>
+
+        {/* UX Section */}
+        <div className="bg-white rounded-lg border p-5">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="font-semibold text-lg">5. UX Guidelines</h3>
+            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
+          </div>
+
+          <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center">
+            <div className="text-4xl mb-3">🎥</div>
+            <p className="text-gray-700 font-medium mb-2">Upload User Flow Videos or Screenshots</p>
+            <p className="text-sm text-gray-600 mb-4">AI will watch/analyze and generate UX guidelines</p>
+            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+              Upload Videos/Screenshots
+            </button>
+            <p className="text-xs text-gray-500 mt-3">Supported: MP4, MOV, PNG, JPG</p>
+          </div>
+        </div>
+
+        {/* UI Section */}
+        <div className="bg-white rounded-lg border p-5">
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="font-semibold text-lg">6. UI Guidelines</h3>
+            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
+          </div>
+
+          <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center">
+            <div className="text-4xl mb-3">🎨</div>
+            <p className="text-gray-700 font-medium mb-2">Upload UI Screenshots You Like</p>
+            <p className="text-sm text-gray-600 mb-4">AI will analyze: colors, spacing, typography, components</p>
+            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+              Upload UI Examples
+            </button>
+            <p className="text-xs text-gray-500 mt-3">AI generates design guidelines from your examples</p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
