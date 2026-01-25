@@ -735,106 +735,189 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Memory Tab */}
+        {/* Memory Tab - Manage & Refine Memory */}
         {activeTab === 'memory' && (
-          <div className="max-w-3xl mx-auto">
-            <div className="card mb-6">
-              <h2 className="text-lg font-semibold mb-4">Add Memory Entry</h2>
-              <div className="flex gap-4 mb-4">
-                <select
-                  className="input-field w-40"
-                  value={newMemory.category}
-                  onChange={e => setNewMemory({ ...newMemory, category: e.target.value })}
+          <div>
+            <div className="bg-white rounded-xl border p-6 mb-6">
+              <h2 className="text-2xl font-bold mb-2">Manage & Refine Memory</h2>
+              <p className="text-gray-600 mb-4">Paste your existing Claude memory, and AI will help you refine it!</p>
+
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4">
+                <p className="text-sm text-blue-900 font-medium">How it works:</p>
+                <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside mt-2">
+                  <li>Copy your memory from Claude.ai (Settings → Memory)</li>
+                  <li>Paste it below</li>
+                  <li>AI analyzes and suggests improvements</li>
+                  <li>Edit with AI assistance</li>
+                  <li>Export refined memory back to Claude</li>
+                </ol>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-sm font-medium">Paste Your Current Claude Memory</label>
+                    <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">Clear</button>
+                  </div>
+                  <textarea
+                    value={newMemory.content}
+                    onChange={(e) => setNewMemory({ ...newMemory, content: e.target.value })}
+                    rows={10}
+                    placeholder={`Paste your Claude memory here...
+
+Example:
+Work context:
+QueXopa operates a MEGA sweepstakes company...
+
+Personal context:
+QueXopa demonstrates strong technical curiosity...`}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-orange-600"
+                  />
+                </div>
+
+                <button
+                  onClick={addMemory}
+                  className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
                 >
-                  <option>Work</option>
-                  <option>Personal</option>
-                  <option>Projects</option>
-                  <option>Preferences</option>
-                  <option>Context</option>
-                </select>
-                <input
-                  type="text"
-                  className="input-field flex-1"
-                  placeholder="What should Claude remember?"
-                  value={newMemory.content}
-                  onChange={e => setNewMemory({ ...newMemory, content: e.target.value })}
-                  onKeyDown={e => e.key === 'Enter' && addMemory()}
-                />
-                <button className="btn-primary" onClick={addMemory}>
-                  <Plus className="w-5 h-5" />
+                  <Sparkles className="w-5 h-5" />
+                  Analyze & Suggest Improvements
                 </button>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {memories.length === 0 ? (
-                <div className="card text-center py-12">
-                  <Brain className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No memories yet. Add something for Claude to remember!</p>
+            {/* AI Suggestions */}
+            {memories.length > 0 && (
+              <div className="space-y-4">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                  <h3 className="font-semibold text-purple-900 mb-4 flex items-center gap-2">
+                    <span className="text-xl">🤖</span>
+                    AI Analysis & Suggestions
+                  </h3>
+
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-lg p-4 border-l-4 border-yellow-500">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">💡</span>
+                        <div>
+                          <p className="font-medium text-gray-900 mb-1">Suggestion 1: Add specificity</p>
+                          <p className="text-sm text-gray-700 mb-2">"Technical curiosity" is vague. Try: "Prefers complete, production-ready solutions with TypeScript and proper error handling"</p>
+                          <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">Apply this change</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border-l-4 border-blue-500">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🏷️</span>
+                        <div>
+                          <p className="font-medium text-gray-900 mb-1">Suggestion 2: Add categories</p>
+                          <p className="text-sm text-gray-700 mb-2">Organize memories into: "Work Context", "Technical Preferences", "Communication Style", "Current Projects"</p>
+                          <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">Auto-organize</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-lg p-4 border-l-4 border-green-500">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">➕</span>
+                        <div>
+                          <p className="font-medium text-gray-900 mb-1">Suggestion 3: Missing info</p>
+                          <p className="text-sm text-gray-700 mb-2">Consider adding: Preferred programming languages, Communication timezone, Team collaboration style</p>
+                          <button className="text-sm text-orange-600 hover:text-orange-700 font-medium">Add these entries</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                memories.map((memory, index) => (
-                  <div key={index} className="card flex items-start gap-4">
-                    <span className="px-2 py-1 text-xs font-medium bg-claude-orange/10 text-claude-orange rounded">
-                      {memory.category}
-                    </span>
-                    <p className="flex-1 text-gray-700">{memory.content}</p>
+
+                <div className="bg-white rounded-xl border p-6">
+                  <h3 className="font-semibold mb-4">Refined Memory (Editable)</h3>
+                  <textarea
+                    rows={12}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg font-mono text-sm mb-4 focus:ring-2 focus:ring-orange-600"
+                    defaultValue={memories.map(m => `${m.category}:\n${m.content}`).join('\n\n')}
+                  />
+
+                  <div className="flex gap-3">
                     <button
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                      onClick={() => deleteMemory(index)}
+                      onClick={() => {
+                        if (userEmail) {
+                          saveMemoriesMutation({ email: userEmail, memories });
+                          toast.success('Memory saved!');
+                        }
+                      }}
+                      className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      Save Refined Memory
+                    </button>
+                    <button className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                      Copy to Clipboard
+                    </button>
+                    <button className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                      Export as .txt
                     </button>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Skills Tab */}
+        {/* Skills Tab - Claude Skills Builder */}
         {activeTab === 'skills' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold">Claude Skills Library</h2>
+          <div>
+            <div className="bg-white rounded-xl border p-6 mb-6">
+              <h2 className="text-2xl font-bold mb-2">Claude Skills Builder</h2>
+              <p className="text-gray-600">Create custom skills or use templates</p>
+            </div>
+
+            {/* AI Generator */}
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 mb-6">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                <Wand2 className="w-6 h-6 text-purple-600" />
+                AI Skill Generator
+              </h3>
+              <p className="text-sm text-gray-700 mb-4">Describe what you want → AI creates the complete skill</p>
+              <textarea
+                placeholder="e.g., 'Create a skill for writing compelling marketing emails for B2B SaaS companies'"
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg mb-3 focus:ring-2 focus:ring-purple-600"
+                value={newSkill.description}
+                onChange={e => setNewSkill({ ...newSkill, description: e.target.value })}
+              />
               <button
-                className="btn-primary flex items-center gap-2"
-                onClick={() => setShowSkillForm(!showSkillForm)}
+                onClick={() => setShowSkillForm(true)}
+                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
               >
-                <Plus className="w-4 h-4" />
-                Create Skill
+                <Sparkles className="w-5 h-5" />
+                Generate Skill with AI
               </button>
             </div>
 
+            {/* Skill Form */}
             {showSkillForm && (
-              <div className="card mb-6">
-                <h3 className="font-medium mb-4">New Custom Skill</h3>
+              <div className="bg-white rounded-xl border p-6 mb-6">
+                <h3 className="font-semibold mb-4">Create Custom Skill</h3>
                 <div className="space-y-4">
                   <input
                     type="text"
-                    className="input-field"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
                     placeholder="Skill name (e.g., 'SQL Expert')"
                     value={newSkill.name}
                     onChange={e => setNewSkill({ ...newSkill, name: e.target.value })}
                   />
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Short description"
-                    value={newSkill.description}
-                    onChange={e => setNewSkill({ ...newSkill, description: e.target.value })}
-                  />
                   <textarea
-                    className="input-field min-h-[100px]"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
                     placeholder="Skill template/prompt (e.g., 'You are an expert SQL developer...')"
+                    rows={4}
                     value={newSkill.template}
                     onChange={e => setNewSkill({ ...newSkill, template: e.target.value })}
                   />
                   <div className="flex gap-3">
-                    <button className="btn-primary" onClick={addSkill}>
+                    <button onClick={addSkill} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium">
                       Save Skill
                     </button>
-                    <button className="btn-secondary" onClick={() => setShowSkillForm(false)}>
+                    <button onClick={() => setShowSkillForm(false)} className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
                       Cancel
                     </button>
                   </div>
@@ -842,10 +925,19 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-4">
+            {/* Templates Grid */}
+            <div className="grid grid-cols-2 gap-4">
               {skills.map((skill, index) => (
-                <div key={index} className="card">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={index} className="bg-white rounded-lg border p-5 hover:border-orange-600 transition-colors cursor-pointer">
+                  <div className="text-3xl mb-2">
+                    {skill.name.includes('Scraping') ? '⚡' :
+                     skill.name.includes('Data') ? '📊' :
+                     skill.name.includes('API') ? '🔌' :
+                     skill.name.includes('Content') ? '📝' :
+                     skill.name.includes('Code') ? '🔍' :
+                     skill.name.includes('Project') ? '📋' : '⚙️'}
+                  </div>
+                  <div className="flex items-start justify-between mb-1">
                     <h3 className="font-semibold">{skill.name}</h3>
                     {skill.isCustom && (
                       <button
@@ -857,14 +949,9 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <p className="text-sm text-gray-600 mb-3">{skill.description}</p>
-                  <details className="text-sm">
-                    <summary className="cursor-pointer text-claude-orange hover:underline">
-                      View template
-                    </summary>
-                    <pre className="mt-2 p-3 bg-gray-50 rounded text-xs overflow-x-auto">
-                      {skill.template}
-                    </pre>
-                  </details>
+                  <button className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Use Template
+                  </button>
                   {skill.isCustom && (
                     <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
                       Custom
@@ -876,142 +963,253 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Memory Files Tab */}
+        {/* Memory Files Tab - CLAUDE.md */}
         {activeTab === 'files' && (
-          <div className="max-w-3xl mx-auto">
-            <div className="card mb-6">
-              <h2 className="text-lg font-semibold mb-4">Generate CLAUDE.md</h2>
-              <p className="text-gray-600 mb-4">
-                Create a configuration file that captures your preferences, memories, and skills. Use
-                this file with Claude for personalized interactions.
-              </p>
+          <div>
+            <div className="bg-white rounded-xl border p-6 mb-6">
+              <h2 className="text-2xl font-bold mb-2">Memory Files (CLAUDE.md)</h2>
+              <p className="text-gray-600 mb-4">Create global or project-specific memory files</p>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-900 font-medium mb-2">📄 What are Memory Files?</p>
+                <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                  <li><strong>Global:</strong> Place in ~/.claude/ for all projects</li>
+                  <li><strong>Project:</strong> Place in project root for that project only</li>
+                  <li>Perfect for Claude Code autonomous development</li>
+                </ul>
+              </div>
+
               <button
-                className="btn-primary flex items-center gap-2"
                 onClick={generateClaudeFile}
+                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
               >
-                <FileText className="w-4 h-4" />
-                Generate File
+                <Plus className="w-4 h-4" />
+                Create New CLAUDE.md
               </button>
             </div>
 
-            {generatedFile && (
-              <div className="card">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-semibold">Generated CLAUDE.md</h3>
-                  <button
-                    className="btn-secondary flex items-center gap-2"
-                    onClick={() => downloadFile(generatedFile, 'CLAUDE.md')}
-                  >
-                    <Download className="w-4 h-4" />
-                    Download
-                  </button>
+            {/* Generated/Example Files */}
+            <div className="space-y-4">
+              {generatedFile ? (
+                <div className="bg-white rounded-lg border p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <span className="text-2xl">✅</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Generated CLAUDE.md</h3>
+                        <p className="text-sm text-gray-600">Your personalized configuration</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => downloadFile(generatedFile, 'CLAUDE.md')}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download
+                      </button>
+                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
+                    </div>
+                  </div>
+                  <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto max-h-[400px] overflow-y-auto">
+                    {generatedFile}
+                  </pre>
                 </div>
-                <pre className="bg-gray-50 p-4 rounded-lg text-sm overflow-x-auto max-h-[500px] overflow-y-auto">
-                  {generatedFile}
-                </pre>
-              </div>
-            )}
+              ) : (
+                <div className="bg-white rounded-lg border p-5">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <span className="text-2xl">🌍</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Global Development Rules</h3>
+                        <p className="text-sm text-gray-600">Applied to all projects</p>
+                      </div>
+                    </div>
+                    <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
+                  </div>
+                  <pre className="text-xs bg-gray-50 p-3 rounded overflow-x-auto">
+{`# Global Claude Rules
+
+## Code Style
+- TypeScript required
+- ESLint + Prettier
+- Comprehensive error handling
+
+## Testing
+- Unit tests for all functions
+- Integration tests for API routes`}
+                  </pre>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Projects Tab */}
+        {/* Projects Tab - Develop Projects */}
         {activeTab === 'projects' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Project List */}
-              <div className="md:col-span-1">
-                <div className="card">
-                  <h2 className="text-lg font-semibold mb-4">Projects</h2>
-                  <div className="flex gap-2 mb-4">
-                    <input
-                      type="text"
-                      className="input-field flex-1"
-                      placeholder="New project name"
-                      value={newProjectName}
-                      onChange={e => setNewProjectName(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && createProject()}
-                    />
-                    <button className="btn-primary" onClick={createProject}>
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {projects.map((project, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-2 ${
-                          activeProject?.name === project.name
-                            ? 'bg-claude-orange text-white rounded-lg'
-                            : ''
-                        }`}
-                      >
-                        <button
-                          className={`flex-1 text-left px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
-                            activeProject?.name === project.name
-                              ? ''
-                              : 'hover:bg-gray-100'
-                          }`}
-                          onClick={() => setActiveProject(project)}
-                        >
-                          <FolderOpen className="w-4 h-4" />
-                          {project.name}
-                        </button>
-                        <button
-                          className={`p-2 rounded transition-colors ${
-                            activeProject?.name === project.name
-                              ? 'text-white/70 hover:text-white'
-                              : 'text-gray-400 hover:text-red-500'
-                          }`}
-                          onClick={() => deleteProject(project.name)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    {projects.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No projects yet</p>
-                    )}
-                  </div>
+          <div className="grid grid-cols-12 gap-6">
+            {/* Project List Sidebar */}
+            <div className="col-span-3">
+              <div className="bg-white rounded-xl border p-6">
+                <h3 className="font-bold mb-4">Projects</h3>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-600"
+                    placeholder="New project"
+                    value={newProjectName}
+                    onChange={e => setNewProjectName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && createProject()}
+                  />
+                  <button onClick={createProject} className="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg">
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
-
-              {/* Project Editor */}
-              <div className="md:col-span-2">
-                {activeProject ? (
-                  <div className="card">
-                    <div className="flex justify-between items-center mb-6">
-                      <h2 className="text-lg font-semibold">{activeProject.name}</h2>
+                <div className="space-y-2">
+                  {projects.map((project, index) => (
+                    <div
+                      key={index}
+                      onClick={() => setActiveProject(project)}
+                      className={`p-3 rounded-lg cursor-pointer flex items-center justify-between ${
+                        activeProject?.name === project.name
+                          ? 'bg-orange-600 text-white'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>📁</span> {project.name}
+                      </span>
                       <button
-                        className="btn-primary flex items-center gap-2"
-                        onClick={exportProject}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteProject(project.name);
+                        }}
+                        className={activeProject?.name === project.name ? 'text-white/70 hover:text-white' : 'text-gray-400 hover:text-red-500'}
                       >
-                        <Download className="w-4 h-4" />
-                        Export Docs
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="space-y-6">
-                      {activeProject.sections.map((section, index) => (
-                        <div key={index}>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {section.title}
-                          </label>
-                          <textarea
-                            className="input-field min-h-[100px]"
-                            placeholder={projectSectionTemplates[index]?.placeholder}
-                            value={section.content}
-                            onChange={e => updateProjectSection(index, e.target.value)}
-                          />
-                        </div>
-                      ))}
+                  ))}
+                  {projects.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">No projects yet</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Project Editor */}
+            <div className="col-span-9 space-y-4">
+              {activeProject ? (
+                <>
+                  {/* Project Header */}
+                  <div className="bg-white rounded-xl border p-6">
+                    <h2 className="text-2xl font-bold mb-2">{activeProject.name}</h2>
+                    <div className="bg-gray-200 rounded-full h-2 mb-2">
+                      <div
+                        className="bg-orange-600 h-full rounded-full"
+                        style={{ width: `${(activeProject.sections.filter(s => s.content).length / activeProject.sections.length) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      {activeProject.sections.filter(s => s.content).length} of {activeProject.sections.length} sections completed
+                    </p>
+                  </div>
+
+                  {/* Section 1: Project Context */}
+                  <div className="bg-white rounded-lg border-2 border-orange-600 p-5">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-semibold text-lg">1. Project Context</h3>
+                      <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        Generate with AI
+                      </button>
+                    </div>
+                    <textarea
+                      rows={6}
+                      placeholder="Describe your project context, purpose, and goals..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                      value={activeProject.sections[0]?.content || ''}
+                      onChange={e => updateProjectSection(0, e.target.value)}
+                    />
+                  </div>
+
+                  {/* Section: Data Schema */}
+                  <div className="bg-white rounded-lg border p-5">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-semibold text-lg">3. Data Schema</h3>
+                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
+                    </div>
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                      <div className="text-4xl mb-3">📁</div>
+                      <p className="text-gray-700 font-medium mb-2">Upload Files or Describe</p>
+                      <p className="text-sm text-gray-600 mb-4">Upload: Database dumps, API responses, spreadsheets</p>
+                      <div className="flex gap-3 justify-center">
+                        <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+                          Upload Files
+                        </button>
+                        <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
+                          Describe Instead
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">AI will analyze and generate schema</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="card text-center py-16">
-                    <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">Select or create a project to get started</p>
+
+                  {/* Section: UX Guidelines */}
+                  <div className="bg-white rounded-lg border p-5">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-semibold text-lg">5. UX Guidelines</h3>
+                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
+                    </div>
+                    <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center">
+                      <div className="text-4xl mb-3">🎥</div>
+                      <p className="text-gray-700 font-medium mb-2">Upload User Flow Videos or Screenshots</p>
+                      <p className="text-sm text-gray-600 mb-4">AI will watch/analyze and generate UX guidelines</p>
+                      <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        Upload Videos/Screenshots
+                      </button>
+                      <p className="text-xs text-gray-500 mt-3">Supported: MP4, MOV, PNG, JPG</p>
+                    </div>
                   </div>
-                )}
-              </div>
+
+                  {/* Section: UI Guidelines */}
+                  <div className="bg-white rounded-lg border p-5">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="font-semibold text-lg">6. UI Guidelines</h3>
+                      <button className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">Edit</button>
+                    </div>
+                    <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center">
+                      <div className="text-4xl mb-3">🎨</div>
+                      <p className="text-gray-700 font-medium mb-2">Upload UI Screenshots You Like</p>
+                      <p className="text-sm text-gray-600 mb-4">AI will analyze: colors, spacing, typography, components</p>
+                      <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                        Upload UI Examples
+                      </button>
+                      <p className="text-xs text-gray-500 mt-3">AI generates design guidelines from your examples</p>
+                    </div>
+                  </div>
+
+                  {/* Export Button */}
+                  <div className="flex justify-end">
+                    <button
+                      onClick={exportProject}
+                      className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export Project Docs
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="bg-white rounded-xl border p-16 text-center">
+                  <FolderOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg">Select or create a project to get started</p>
+                </div>
+              )}
             </div>
           </div>
         )}
