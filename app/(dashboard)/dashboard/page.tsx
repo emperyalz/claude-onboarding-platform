@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
@@ -607,40 +607,58 @@ export default function DashboardPage() {
   }, [getProjectsQuery]);
 
   // Session Context integration - sync current tab data with header save button
-  const sessionContext = useSessionContext();
+  const {
+    setUserEmail: ctxSetUserEmail,
+    setCurrentTabType: ctxSetCurrentTabType,
+    setCurrentData: ctxSetCurrentData,
+    setOnLoadSessionCallback: ctxSetOnLoadSessionCallback,
+  } = useSessionContext();
 
-  // Set user email in context
+  // Set user email in context (only when email changes)
   useEffect(() => {
     if (userEmail) {
-      sessionContext.setUserEmail(userEmail);
+      ctxSetUserEmail(userEmail);
     }
-  }, [userEmail, sessionContext]);
+  }, [userEmail, ctxSetUserEmail]);
 
   // Update context when tab changes
   useEffect(() => {
-    sessionContext.setCurrentTabType(activeTab);
-  }, [activeTab, sessionContext]);
+    ctxSetCurrentTabType(activeTab);
+  }, [activeTab, ctxSetCurrentTabType]);
 
-  // Update context with current tab data whenever it changes
+  // Update context with current tab data - use a ref to avoid infinite loops
+  const currentDataRef = useRef<unknown>(null);
+
   useEffect(() => {
-    const getCurrentTabData = () => {
-      switch (activeTab) {
-        case 'preferences':
-          return { answers, phase };
-        case 'memory':
-          return { memories, newMemory };
-        case 'skills':
-          return { skills, newSkill, showSkillForm };
-        case 'files':
-          return { generatedFile };
-        case 'projects':
-          return { projects, activeProject };
-        default:
-          return {};
-      }
-    };
-    sessionContext.setCurrentData(getCurrentTabData());
-  }, [activeTab, answers, phase, memories, newMemory, skills, newSkill, showSkillForm, generatedFile, projects, activeProject, sessionContext]);
+    let newData: unknown;
+    switch (activeTab) {
+      case 'preferences':
+        newData = { answers, phase };
+        break;
+      case 'memory':
+        newData = { memories, newMemory };
+        break;
+      case 'skills':
+        newData = { skills, newSkill, showSkillForm };
+        break;
+      case 'files':
+        newData = { generatedFile };
+        break;
+      case 'projects':
+        newData = { projects, activeProject };
+        break;
+      default:
+        newData = {};
+    }
+
+    // Only update if data actually changed (simple JSON comparison)
+    const newDataStr = JSON.stringify(newData);
+    const currentDataStr = JSON.stringify(currentDataRef.current);
+    if (newDataStr !== currentDataStr) {
+      currentDataRef.current = newData;
+      ctxSetCurrentData(newData);
+    }
+  }, [activeTab, answers, phase, memories, newMemory, skills, newSkill, showSkillForm, generatedFile, projects, activeProject, ctxSetCurrentData]);
 
   // Handle loading session data from context
   const handleLoadSessionFromContext = useCallback((data: unknown) => {
@@ -680,9 +698,9 @@ export default function DashboardPage() {
 
   // Register the load callback with context
   useEffect(() => {
-    sessionContext.setOnLoadSessionCallback(() => handleLoadSessionFromContext);
-    return () => sessionContext.setOnLoadSessionCallback(null);
-  }, [handleLoadSessionFromContext, sessionContext]);
+    ctxSetOnLoadSessionCallback(() => handleLoadSessionFromContext);
+    return () => ctxSetOnLoadSessionCallback(null);
+  }, [handleLoadSessionFromContext, ctxSetOnLoadSessionCallback]);
 
   const handleAnswerChange = (questionId: string, value: string | string[]) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));

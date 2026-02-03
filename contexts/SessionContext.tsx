@@ -39,11 +39,11 @@ const SessionContext = createContext<SessionContextType | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [currentSessionId, setCurrentSessionId] = useState<Id<'sessions'> | null>(null);
   const [currentSessionName, setCurrentSessionName] = useState<string | null>(null);
-  const [currentTabType, setCurrentTabType] = useState<string | null>(null);
-  const [currentData, setCurrentData] = useState<unknown>(null);
+  const [currentTabType, setCurrentTabTypeState] = useState<string | null>(null);
+  const [currentData, setCurrentDataState] = useState<unknown>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [onLoadSessionCallback, setOnLoadSessionCallback] = useState<((data: unknown) => void) | null>(null);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [onLoadSessionCallback, setOnLoadSessionCallbackState] = useState<((data: unknown) => void) | null>(null);
+  const [userEmail, setUserEmailState] = useState<string | null>(null);
 
   const sessions = useQuery(
     api.sessions.getSessionsByTab,
@@ -56,6 +56,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const setCurrentSession = useCallback((sessionId: Id<'sessions'> | null, name: string | null) => {
     setCurrentSessionId(sessionId);
     setCurrentSessionName(name);
+  }, []);
+
+  // Memoized setters to prevent infinite loops in consumers
+  const setCurrentTabType = useCallback((tabType: string) => {
+    setCurrentTabTypeState(tabType);
+  }, []);
+
+  const setCurrentData = useCallback((data: unknown) => {
+    setCurrentDataState(data);
+  }, []);
+
+  const setUserEmail = useCallback((email: string | null) => {
+    setUserEmailState(email);
+  }, []);
+
+  const setOnLoadSessionCallback = useCallback((callback: ((data: unknown) => void) | null) => {
+    setOnLoadSessionCallbackState(callback);
   }, []);
 
   const saveProgress = useCallback(async () => {
