@@ -909,7 +909,8 @@ export default function DashboardPage() {
     }
   };
 
-  const generateClaudeFile = () => {
+  // Generate CLAUDE.md content (returns string, doesn't set state)
+  const generateClaudeFileContent = useCallback(() => {
     let content = `# CLAUDE.md - ${session?.user?.name || 'User'}'s Configuration\n\n`;
     content += `Generated: ${new Date().toISOString()}\n\n`;
 
@@ -942,6 +943,12 @@ export default function DashboardPage() {
       });
     }
 
+    return content;
+  }, [session?.user?.name, answers, memories, skills]);
+
+  // Generate and set to state (used by Memory Files tab button)
+  const generateClaudeFile = () => {
+    const content = generateClaudeFileContent();
     setGeneratedFile(content);
     toast.success('CLAUDE.md generated!');
   };
@@ -1226,12 +1233,21 @@ export default function DashboardPage() {
                       >
                         Save All Preferences
                       </button>
-                      <button
-                        onClick={() => setActiveTab('files')}
-                        className="px-6 py-2.5 bg-white border border-green-600 text-green-600 hover:bg-green-50 rounded-lg font-medium"
-                      >
-                        Export as CLAUDE.md
-                      </button>
+                      <ExportClaudeDropdown
+                        onDirectDownload={() => {
+                          // Generate and download immediately
+                          const content = generateClaudeFileContent();
+                          downloadFile(content, 'CLAUDE.md');
+                          toast.success('CLAUDE.md downloaded!');
+                        }}
+                        onReviewEdit={() => {
+                          // Generate content and navigate to files tab
+                          const content = generateClaudeFileContent();
+                          setGeneratedFile(content);
+                          setActiveTab('files');
+                          toast.success('CLAUDE.md generated! Review and edit below.');
+                        }}
+                      />
                     </div>
                   </>
                 )}
@@ -2029,6 +2045,66 @@ Customer analytics dashboard for SaaS companies...
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Export CLAUDE.md Dropdown Component
+function ExportClaudeDropdown({
+  onDirectDownload,
+  onReviewEdit,
+}: {
+  onDirectDownload: () => void;
+  onReviewEdit: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-6 py-2.5 bg-white border border-green-600 text-green-600 hover:bg-green-50 rounded-lg font-medium flex items-center gap-2"
+      >
+        <Download className="w-4 h-4" />
+        Export as CLAUDE.md
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <>
+          {/* Dropdown Menu */}
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-50">
+            <button
+              onClick={() => {
+                onDirectDownload();
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b"
+            >
+              <Download className="w-5 h-5 text-green-600" />
+              <div>
+                <p className="font-medium text-gray-900">Download Now</p>
+                <p className="text-xs text-gray-500">Download CLAUDE.md immediately</p>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                onReviewEdit();
+                setIsOpen(false);
+              }}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+            >
+              <Edit3 className="w-5 h-5 text-blue-600" />
+              <div>
+                <p className="font-medium text-gray-900">Review & Edit</p>
+                <p className="text-xs text-gray-500">Preview and customize before downloading</p>
+              </div>
+            </button>
+          </div>
+          {/* Click outside to close */}
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+        </>
+      )}
     </div>
   );
 }
