@@ -43,7 +43,10 @@ export default defineSchema({
         name: v.string(),
         description: v.string(),
         template: v.string(),
+        category: v.string(),
         isCustom: v.boolean(),
+        createdAt: v.optional(v.number()),
+        icon: v.optional(v.string()),
       })
     ),
     updatedAt: v.optional(v.number()),

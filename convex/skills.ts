@@ -9,7 +9,10 @@ export const saveSkills = mutation({
         name: v.string(),
         description: v.string(),
         template: v.string(),
+        category: v.string(),
         isCustom: v.boolean(),
+        createdAt: v.optional(v.number()),
+        icon: v.optional(v.string()),
       })
     ),
   },
@@ -54,7 +57,10 @@ export const addSkill = mutation({
       name: v.string(),
       description: v.string(),
       template: v.string(),
+      category: v.string(),
       isCustom: v.boolean(),
+      createdAt: v.optional(v.number()),
+      icon: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
