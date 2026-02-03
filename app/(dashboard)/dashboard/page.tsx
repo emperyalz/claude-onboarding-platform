@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
 import toast from 'react-hot-toast';
 import SessionSelector from '../../../components/SessionSelector';
+import { useSessionContext } from '../../../contexts/SessionContext';
 import {
   User,
   Settings,
@@ -19,6 +20,13 @@ import {
   Check,
   Loader2,
   Wand2,
+  Upload,
+  Filter,
+  ChevronDown,
+  X,
+  ArrowUpDown,
+  Search,
+  Edit3,
 } from 'lucide-react';
 
 type Tab = 'preferences' | 'memory' | 'skills' | 'files' | 'projects';
@@ -33,7 +41,10 @@ interface Skill {
   name: string;
   description: string;
   template: string;
+  category: string;
   isCustom: boolean;
+  createdAt?: number;
+  icon?: string;
 }
 
 interface ProjectSection {
@@ -213,14 +224,264 @@ const phase2QuestionsByRole: Record<string, Question[]> = {
   ],
 };
 
-// Default skill templates
+// Default skill templates - AI-generated comprehensive skills
 const defaultSkills: Skill[] = [
-  { name: 'Web Scraping Expert', description: 'Specialized in extracting data from websites', template: 'You are an expert web scraper. Help me extract data from websites using Python, Beautiful Soup, Selenium, and other tools. Always provide clean, well-commented code.', isCustom: false },
-  { name: 'Data Analyst', description: 'Analyze and visualize data', template: 'You are a data analysis expert. Help me analyze datasets, create visualizations, and derive insights. Use Python, pandas, and visualization libraries.', isCustom: false },
-  { name: 'API Developer', description: 'Build and integrate APIs', template: 'You are an API development expert. Help me design, build, and integrate REST and GraphQL APIs. Focus on best practices, security, and documentation.', isCustom: false },
-  { name: 'Content Writer', description: 'Create engaging content', template: 'You are a professional content writer. Help me create engaging, well-structured content for various platforms. Focus on clarity, engagement, and SEO.', isCustom: false },
-  { name: 'Code Reviewer', description: 'Review and improve code quality', template: 'You are a code review expert. Analyze code for bugs, performance issues, security vulnerabilities, and suggest improvements. Be thorough but constructive.', isCustom: false },
-  { name: 'Project Planner', description: 'Plan and organize projects', template: 'You are a project planning expert. Help me break down projects into tasks, create timelines, identify dependencies, and manage resources effectively.', isCustom: false },
+  {
+    name: 'Web Scraping Expert',
+    description: 'Specialized in extracting data from websites',
+    category: 'Data & Analytics',
+    icon: '⚡',
+    template: `You are an expert web scraper with deep knowledge of data extraction techniques. Your capabilities include:
+
+**Technical Expertise:**
+- Python libraries: Beautiful Soup, Scrapy, Selenium, Playwright, requests-html
+- JavaScript: Puppeteer, Cheerio, Axios
+- Handling anti-bot measures: rotating proxies, user-agent spoofing, CAPTCHA solving strategies
+- Rate limiting and respectful scraping practices
+
+**Best Practices:**
+- Always check robots.txt before scraping
+- Implement proper error handling and retry logic
+- Structure extracted data in clean, normalized formats (JSON, CSV)
+- Add comprehensive logging for debugging
+- Include data validation and cleaning steps
+
+**Output Format:**
+- Provide complete, production-ready code with comments
+- Include requirements.txt or package.json as needed
+- Document any setup steps or environment variables required
+- Suggest data storage solutions (databases, files)
+
+When asked to scrape, first analyze the target site's structure and recommend the best approach.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
+  {
+    name: 'Data Analyst',
+    description: 'Analyze and visualize data',
+    category: 'Data & Analytics',
+    icon: '📊',
+    template: `You are an expert data analyst skilled in transforming raw data into actionable insights. Your expertise includes:
+
+**Analysis Capabilities:**
+- Exploratory Data Analysis (EDA) with statistical summaries
+- Hypothesis testing and A/B test analysis
+- Trend analysis, seasonality detection, and forecasting
+- Customer segmentation and cohort analysis
+- Anomaly detection and outlier identification
+
+**Technical Stack:**
+- Python: pandas, numpy, scipy, statsmodels, scikit-learn
+- Visualization: matplotlib, seaborn, plotly, altair
+- SQL for data extraction and complex queries
+- Excel/Google Sheets for quick analysis
+
+**Deliverables:**
+- Clear executive summaries with key findings
+- Publication-ready visualizations with proper labels and legends
+- Statistical significance tests with confidence intervals
+- Reproducible analysis notebooks with documentation
+- Actionable recommendations based on findings
+
+**Communication Style:**
+- Explain complex statistics in plain language
+- Highlight business implications alongside technical findings
+- Provide confidence levels for conclusions
+- Suggest follow-up analyses when appropriate
+
+Always start by understanding the business question before diving into analysis.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
+  {
+    name: 'API Developer',
+    description: 'Build and integrate APIs',
+    category: 'Development',
+    icon: '🔌',
+    template: `You are an expert API developer specializing in designing, building, and integrating robust APIs. Your expertise includes:
+
+**API Design:**
+- RESTful API design following OpenAPI/Swagger specifications
+- GraphQL schema design and resolver implementation
+- gRPC for high-performance microservices
+- WebSocket APIs for real-time applications
+- API versioning strategies (URL, header, query param)
+
+**Security Best Practices:**
+- OAuth 2.0 and JWT authentication
+- Rate limiting and throttling
+- Input validation and sanitization
+- CORS configuration
+- API key management
+
+**Documentation:**
+- OpenAPI/Swagger documentation
+- Postman collections with examples
+- Code samples in multiple languages
+- Authentication flow diagrams
+- Error code reference guides
+
+**Integration Patterns:**
+- Webhook implementations
+- Polling vs. push strategies
+- Idempotency for reliable operations
+- Pagination strategies (cursor, offset)
+- Caching strategies (ETags, Cache-Control)
+
+**Code Quality:**
+- Comprehensive error handling with meaningful messages
+- Request/response logging
+- Health check endpoints
+- Graceful degradation patterns
+
+Provide production-ready code with proper structure and testing considerations.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
+  {
+    name: 'Content Writer',
+    description: 'Create engaging content',
+    category: 'Writing & Communication',
+    icon: '📝',
+    template: `You are a professional content writer and strategist skilled in creating compelling content across multiple formats. Your expertise includes:
+
+**Content Types:**
+- Blog posts and articles (SEO-optimized)
+- Technical documentation and guides
+- Marketing copy (landing pages, ads, email)
+- Social media content
+- Case studies and white papers
+- Product descriptions and UX copy
+
+**Writing Principles:**
+- Hook readers with compelling openings
+- Use clear, scannable formatting (headers, bullets, short paragraphs)
+- Match tone and voice to target audience
+- Include actionable takeaways
+- End with clear calls-to-action
+
+**SEO Best Practices:**
+- Keyword research and natural integration
+- Meta descriptions and title tags
+- Internal linking strategies
+- Featured snippet optimization
+- Readability scoring (Flesch-Kincaid)
+
+**Content Structure:**
+- AIDA framework (Attention, Interest, Desire, Action)
+- PAS framework (Problem, Agitation, Solution)
+- Inverted pyramid for news-style content
+- Storytelling techniques for engagement
+
+**Quality Checks:**
+- Grammar and style consistency
+- Fact verification
+- Plagiarism awareness
+- Brand voice alignment
+- Accessibility considerations
+
+Always ask about target audience, goals, and desired tone before writing.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
+  {
+    name: 'Code Reviewer',
+    description: 'Review and improve code quality',
+    category: 'Development',
+    icon: '🔍',
+    template: `You are an expert code reviewer focused on improving code quality, security, and maintainability. Your review approach includes:
+
+**Review Categories:**
+1. **Correctness:** Logic errors, edge cases, off-by-one errors
+2. **Security:** OWASP Top 10, injection vulnerabilities, authentication flaws
+3. **Performance:** Time/space complexity, N+1 queries, memory leaks
+4. **Maintainability:** Code clarity, naming, documentation
+5. **Architecture:** Design patterns, separation of concerns, coupling
+
+**Review Format:**
+- 🔴 **Critical:** Must fix before merge (security, correctness)
+- 🟡 **Important:** Should fix (performance, maintainability)
+- 🟢 **Suggestion:** Nice to have (style, optimization)
+- 💡 **Learning:** Educational notes for the author
+
+**Feedback Style:**
+- Be specific with line references and examples
+- Explain the "why" behind suggestions
+- Offer concrete alternatives, not just criticism
+- Acknowledge good patterns and practices
+- Consider context and constraints
+
+**Common Patterns to Check:**
+- Error handling completeness
+- Input validation and sanitization
+- Logging and observability
+- Test coverage gaps
+- Documentation accuracy
+- Dependency versions and security
+
+**Language-Specific:**
+- Apply language idioms and best practices
+- Check for modern syntax usage
+- Verify type safety where applicable
+- Assess library/framework usage
+
+Always balance thoroughness with pragmatism—not everything needs to be perfect.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
+  {
+    name: 'Project Planner',
+    description: 'Plan and organize projects',
+    category: 'Productivity',
+    icon: '📋',
+    template: `You are an expert project planner skilled in breaking down complex projects into actionable plans. Your expertise includes:
+
+**Planning Frameworks:**
+- Work Breakdown Structure (WBS)
+- Agile sprint planning and story mapping
+- Gantt chart creation and critical path analysis
+- PERT estimation (optimistic, pessimistic, most likely)
+- MoSCoW prioritization (Must, Should, Could, Won't)
+
+**Deliverables:**
+- Clear project scope and objectives
+- Task breakdown with dependencies
+- Resource allocation recommendations
+- Risk identification and mitigation strategies
+- Milestone definitions and success criteria
+- Communication and reporting plans
+
+**Estimation Techniques:**
+- T-shirt sizing for initial estimates
+- Story point calibration
+- Three-point estimation
+- Historical data comparison
+- Buffer allocation strategies
+
+**Tools Integration:**
+- Jira/Linear epic and story structure
+- Notion/Confluence documentation templates
+- GitHub project board organization
+- Asana/Monday.com task hierarchies
+
+**Best Practices:**
+- Start with clear definition of done
+- Identify blockers and dependencies early
+- Build in contingency time (15-25%)
+- Plan for iterations and feedback loops
+- Include stakeholder review checkpoints
+
+**Output Format:**
+- Executive summary with key milestones
+- Detailed task list with estimates
+- Dependency diagram
+- Resource requirements
+- Risk register
+
+Always clarify scope, constraints, and success metrics before planning.`,
+    isCustom: false,
+    createdAt: Date.now()
+  },
 ];
 
 // Project section templates
@@ -255,8 +516,17 @@ export default function DashboardPage() {
 
   // Skills state
   const [skills, setSkills] = useState<Skill[]>(defaultSkills);
-  const [newSkill, setNewSkill] = useState({ name: '', description: '', template: '' });
+  const [newSkill, setNewSkill] = useState({ name: '', description: '', template: '', category: '' });
   const [showSkillForm, setShowSkillForm] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
+
+  // Skills filter state
+  const [skillSearchQuery, setSkillSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [skillSortBy, setSkillSortBy] = useState<'recent' | 'name-asc' | 'name-desc' | 'oldest'>('recent');
+  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  const [showSortFilter, setShowSortFilter] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   // Files state
   const [generatedFile, setGeneratedFile] = useState('');
@@ -302,7 +572,27 @@ export default function DashboardPage() {
   useEffect(() => {
     if (getSkillsQuery && getSkillsQuery.length > 0) {
       // Merge default skills with custom skills from database
-      const customSkills = getSkillsQuery.filter((s: Skill) => s.isCustom);
+      // Handle backward compatibility for skills without new fields
+      interface LegacySkill {
+        name: string;
+        description: string;
+        template: string;
+        category?: string;
+        isCustom: boolean;
+        createdAt?: number;
+        icon?: string;
+      }
+      const customSkills = getSkillsQuery
+        .filter((s: LegacySkill) => s.isCustom)
+        .map((s: LegacySkill): Skill => ({
+          name: s.name,
+          description: s.description,
+          template: s.template,
+          category: s.category || 'Other',
+          isCustom: s.isCustom,
+          createdAt: s.createdAt || Date.now(),
+          icon: s.icon || '⚙️'
+        }));
       setSkills([...defaultSkills, ...customSkills]);
     }
   }, [getSkillsQuery]);
@@ -315,6 +605,84 @@ export default function DashboardPage() {
       })));
     }
   }, [getProjectsQuery]);
+
+  // Session Context integration - sync current tab data with header save button
+  const sessionContext = useSessionContext();
+
+  // Set user email in context
+  useEffect(() => {
+    if (userEmail) {
+      sessionContext.setUserEmail(userEmail);
+    }
+  }, [userEmail, sessionContext]);
+
+  // Update context when tab changes
+  useEffect(() => {
+    sessionContext.setCurrentTabType(activeTab);
+  }, [activeTab, sessionContext]);
+
+  // Update context with current tab data whenever it changes
+  useEffect(() => {
+    const getCurrentTabData = () => {
+      switch (activeTab) {
+        case 'preferences':
+          return { answers, phase };
+        case 'memory':
+          return { memories, newMemory };
+        case 'skills':
+          return { skills, newSkill, showSkillForm };
+        case 'files':
+          return { generatedFile };
+        case 'projects':
+          return { projects, activeProject };
+        default:
+          return {};
+      }
+    };
+    sessionContext.setCurrentData(getCurrentTabData());
+  }, [activeTab, answers, phase, memories, newMemory, skills, newSkill, showSkillForm, generatedFile, projects, activeProject, sessionContext]);
+
+  // Handle loading session data from context
+  const handleLoadSessionFromContext = useCallback((data: unknown) => {
+    switch (activeTab) {
+      case 'preferences': {
+        const sessionData = data as { answers: Record<string, string | string[]>; phase: 1 | 2 };
+        setAnswers(sessionData.answers || {});
+        setPhase(sessionData.phase || 1);
+        break;
+      }
+      case 'memory': {
+        const sessionData = data as { memories: MemoryEntry[]; newMemory: { category: string; content: string } };
+        setMemories(sessionData.memories || []);
+        setNewMemory(sessionData.newMemory || { category: 'Work', content: '' });
+        break;
+      }
+      case 'skills': {
+        const sessionData = data as { skills: Skill[]; newSkill: { name: string; description: string; template: string; category: string }; showSkillForm: boolean };
+        setSkills(sessionData.skills || defaultSkills);
+        setNewSkill(sessionData.newSkill || { name: '', description: '', template: '', category: '' });
+        setShowSkillForm(sessionData.showSkillForm || false);
+        break;
+      }
+      case 'files': {
+        const sessionData = data as { generatedFile: string };
+        setGeneratedFile(sessionData.generatedFile || '');
+        break;
+      }
+      case 'projects': {
+        const sessionData = data as { projects: Project[]; activeProject: Project | null };
+        setProjects(sessionData.projects || []);
+        setActiveProject(sessionData.activeProject || null);
+        break;
+      }
+    }
+  }, [activeTab]);
+
+  // Register the load callback with context
+  useEffect(() => {
+    sessionContext.setOnLoadSessionCallback(() => handleLoadSessionFromContext);
+    return () => sessionContext.setOnLoadSessionCallback(null);
+  }, [handleLoadSessionFromContext, sessionContext]);
 
   const handleAnswerChange = (questionId: string, value: string | string[]) => {
     setAnswers(prev => ({ ...prev, [questionId]: value }));
@@ -406,17 +774,112 @@ export default function DashboardPage() {
   };
 
   const addSkill = async () => {
-    if (newSkill.name && newSkill.template) {
-      const skill = { ...newSkill, isCustom: true };
+    if (newSkill.name && newSkill.template && newSkill.category) {
+      const skill: Skill = {
+        ...newSkill,
+        isCustom: true,
+        createdAt: Date.now(),
+        icon: '⚙️'
+      };
       const updated = [...skills, skill];
       setSkills(updated);
-      setNewSkill({ name: '', description: '', template: '' });
+      setNewSkill({ name: '', description: '', template: '', category: '' });
       setShowSkillForm(false);
+      setEditingSkill(null);
       if (userEmail) {
         await saveSkillsMutation({ email: userEmail, skills: updated.filter(s => s.isCustom) });
         toast.success('Skill created!');
       }
+    } else {
+      toast.error('Please fill in all required fields');
     }
+  };
+
+  const useTemplate = (skill: Skill) => {
+    setNewSkill({
+      name: skill.name,
+      description: skill.description,
+      template: skill.template,
+      category: skill.category
+    });
+    setShowSkillForm(true);
+    toast.success(`Loaded "${skill.name}" template - customize it as needed!`);
+  };
+
+  const handleSkillImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('email', userEmail);
+
+      const response = await fetch('/api/skills/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success && result.skills) {
+        const importedSkills: Skill[] = result.skills.map((s: Partial<Skill>) => ({
+          ...s,
+          isCustom: true,
+          createdAt: Date.now(),
+          icon: s.icon || '📦'
+        }));
+        const updated = [...skills, ...importedSkills];
+        setSkills(updated);
+        if (userEmail) {
+          await saveSkillsMutation({ email: userEmail, skills: updated.filter(s => s.isCustom) });
+        }
+        toast.success(`Imported ${importedSkills.length} skill(s)!`);
+      } else {
+        toast.error(result.error || 'Failed to import skills');
+      }
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Failed to import skills');
+    } finally {
+      setIsImporting(false);
+      event.target.value = '';
+    }
+  };
+
+  // Get unique categories from skills
+  const allCategories = Array.from(new Set(skills.map(s => s.category).filter(Boolean)));
+
+  // Filter and sort skills
+  const filteredSkills = skills
+    .filter(skill => {
+      const matchesSearch = !skillSearchQuery ||
+        skill.name.toLowerCase().includes(skillSearchQuery.toLowerCase()) ||
+        skill.description.toLowerCase().includes(skillSearchQuery.toLowerCase());
+      const matchesCategory = selectedCategories.length === 0 ||
+        selectedCategories.includes(skill.category);
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      switch (skillSortBy) {
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        case 'oldest':
+          return (a.createdAt || 0) - (b.createdAt || 0);
+        case 'recent':
+        default:
+          return (b.createdAt || 0) - (a.createdAt || 0);
+      }
+    });
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    )
   };
 
   const deleteSkill = async (index: number) => {
@@ -907,11 +1370,12 @@ QueXopa demonstrates strong technical curiosity...`}
         {/* Skills Tab - Claude Skills Builder */}
         {activeTab === 'skills' && (
           <div>
+            {/* Header */}
             <div className="bg-white rounded-xl border p-6 mb-6">
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Claude Skills Builder</h2>
-                  <p className="text-gray-600">Create custom skills or use templates</p>
+                  <p className="text-gray-600">Create custom skills, use templates, or import from external sources</p>
                 </div>
                 {userEmail && (
                   <SessionSelector
@@ -919,9 +1383,9 @@ QueXopa demonstrates strong technical curiosity...`}
                     tabType="skills"
                     currentData={{ skills, newSkill, showSkillForm }}
                     onLoadSession={(data: unknown) => {
-                      const sessionData = data as { skills: Skill[]; newSkill: { name: string; description: string; template: string }; showSkillForm: boolean };
+                      const sessionData = data as { skills: Skill[]; newSkill: { name: string; description: string; template: string; category: string }; showSkillForm: boolean };
                       setSkills(sessionData.skills || defaultSkills);
-                      setNewSkill(sessionData.newSkill || { name: '', description: '', template: '' });
+                      setNewSkill(sessionData.newSkill || { name: '', description: '', template: '', category: '' });
                       setShowSkillForm(sessionData.showSkillForm || false);
                     }}
                     tabLabel="skill session"
@@ -944,39 +1408,112 @@ QueXopa demonstrates strong technical curiosity...`}
                 value={newSkill.description}
                 onChange={e => setNewSkill({ ...newSkill, description: e.target.value })}
               />
-              <button
-                onClick={() => setShowSkillForm(true)}
-                className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
-              >
-                <Sparkles className="w-5 h-5" />
-                Generate Skill with AI
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowSkillForm(true)}
+                  className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Generate Skill with AI
+                </button>
+                <label className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium flex items-center gap-2 cursor-pointer">
+                  <Upload className="w-5 h-5 text-gray-600" />
+                  {isImporting ? 'Importing...' : 'Import Skills'}
+                  <input
+                    type="file"
+                    accept=".zip,.md"
+                    onChange={handleSkillImport}
+                    className="hidden"
+                    disabled={isImporting}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Import: .zip packages or SKILL.md files from skillsmp.com or other sources</p>
             </div>
 
-            {/* Skill Form */}
+            {/* Skill Form Modal */}
             {showSkillForm && (
-              <div className="bg-white rounded-xl border p-6 mb-6">
-                <h3 className="font-semibold mb-4">Create Custom Skill</h3>
+              <div className="bg-white rounded-xl border-2 border-orange-300 p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-lg">{editingSkill ? 'Edit Skill' : 'Create Custom Skill'}</h3>
+                  <button
+                    onClick={() => {
+                      setShowSkillForm(false);
+                      setEditingSkill(null);
+                      setNewSkill({ name: '', description: '', template: '', category: '' });
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
                 <div className="space-y-4">
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
-                    placeholder="Skill name (e.g., 'SQL Expert')"
-                    value={newSkill.name}
-                    onChange={e => setNewSkill({ ...newSkill, name: e.target.value })}
-                  />
-                  <textarea
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
-                    placeholder="Skill template/prompt (e.g., 'You are an expert SQL developer...')"
-                    rows={4}
-                    value={newSkill.template}
-                    onChange={e => setNewSkill({ ...newSkill, template: e.target.value })}
-                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Skill Name *</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                        placeholder="e.g., 'SQL Expert'"
+                        value={newSkill.name}
+                        onChange={e => setNewSkill({ ...newSkill, name: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                      <select
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                        value={newSkill.category}
+                        onChange={e => setNewSkill({ ...newSkill, category: e.target.value })}
+                      >
+                        <option value="">Select category...</option>
+                        <option value="Data & Analytics">Data & Analytics</option>
+                        <option value="Development">Development</option>
+                        <option value="Writing & Communication">Writing & Communication</option>
+                        <option value="Productivity">Productivity</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Design">Design</option>
+                        <option value="Research">Research</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                      placeholder="Brief description of what this skill does"
+                      value={newSkill.description}
+                      onChange={e => setNewSkill({ ...newSkill, description: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Skill Template/Prompt *</label>
+                    <textarea
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600 font-mono text-sm"
+                      placeholder="You are an expert... (define the skill's capabilities, knowledge, and behavior)"
+                      rows={8}
+                      value={newSkill.template}
+                      onChange={e => setNewSkill({ ...newSkill, template: e.target.value })}
+                    />
+                  </div>
                   <div className="flex gap-3">
-                    <button onClick={addSkill} className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium">
-                      Save Skill
+                    <button
+                      onClick={addSkill}
+                      className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      {editingSkill ? 'Update Skill' : 'Save Skill'}
                     </button>
-                    <button onClick={() => setShowSkillForm(false)} className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                    <button
+                      onClick={() => {
+                        setShowSkillForm(false);
+                        setEditingSkill(null);
+                        setNewSkill({ name: '', description: '', template: '', category: '' });
+                      }}
+                      className="px-6 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                    >
                       Cancel
                     </button>
                   </div>
@@ -984,41 +1521,246 @@ QueXopa demonstrates strong technical curiosity...`}
               </div>
             )}
 
-            {/* Templates Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              {skills.map((skill, index) => (
-                <div key={index} className="bg-white rounded-lg border p-5 hover:border-orange-600 transition-colors cursor-pointer">
-                  <div className="text-3xl mb-2">
-                    {skill.name.includes('Scraping') ? '⚡' :
-                     skill.name.includes('Data') ? '📊' :
-                     skill.name.includes('API') ? '🔌' :
-                     skill.name.includes('Content') ? '📝' :
-                     skill.name.includes('Code') ? '🔍' :
-                     skill.name.includes('Project') ? '📋' : '⚙️'}
+            {/* Filters Bar */}
+            <div className="bg-white rounded-lg border p-4 mb-6">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* Search */}
+                <div className="flex-1 min-w-[200px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search skills..."
+                      value={skillSearchQuery}
+                      onChange={e => setSkillSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                    />
                   </div>
-                  <div className="flex items-start justify-between mb-1">
-                    <h3 className="font-semibold">{skill.name}</h3>
-                    {skill.isCustom && (
+                </div>
+
+                {/* Category Filter */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowCategoryFilter(!showCategoryFilter);
+                      setShowSortFilter(false);
+                    }}
+                    className={`flex items-center gap-2 px-4 py-2 border rounded-lg transition-colors ${
+                      selectedCategories.length > 0
+                        ? 'bg-orange-50 border-orange-300 text-orange-700'
+                        : 'border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    Category
+                    {selectedCategories.length > 0 && (
+                      <span className="bg-orange-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                        {selectedCategories.length}
+                      </span>
+                    )}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showCategoryFilter && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border z-50">
+                      <div className="p-3 border-b">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-sm">Filter by Category</span>
+                          {selectedCategories.length > 0 && (
+                            <button
+                              onClick={() => setSelectedCategories([])}
+                              className="text-xs text-orange-600 hover:text-orange-700"
+                            >
+                              Clear all
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-2 max-h-64 overflow-y-auto">
+                        {allCategories.map(category => (
+                          <label
+                            key={category}
+                            className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded cursor-pointer"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedCategories.includes(category)}
+                              onChange={() => toggleCategory(category)}
+                              className="w-4 h-4 rounded text-orange-600"
+                            />
+                            <span className="text-sm">{category}</span>
+                            <span className="ml-auto text-xs text-gray-400">
+                              ({skills.filter(s => s.category === category).length})
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sort Filter */}
+                <div className="relative">
+                  <button
+                    onClick={() => {
+                      setShowSortFilter(!showSortFilter);
+                      setShowCategoryFilter(false);
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    {skillSortBy === 'recent' && 'Most Recent'}
+                    {skillSortBy === 'name-asc' && 'Name A-Z'}
+                    {skillSortBy === 'name-desc' && 'Name Z-A'}
+                    {skillSortBy === 'oldest' && 'Oldest'}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {showSortFilter && (
+                    <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-50">
+                      {[
+                        { value: 'recent', label: 'Most Recent' },
+                        { value: 'name-asc', label: 'Name A-Z' },
+                        { value: 'name-desc', label: 'Name Z-A' },
+                        { value: 'oldest', label: 'Oldest' },
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSkillSortBy(option.value as typeof skillSortBy);
+                            setShowSortFilter(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 ${
+                            skillSortBy === option.value ? 'bg-orange-50 text-orange-700' : ''
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Results count */}
+                <span className="text-sm text-gray-500">
+                  {filteredSkills.length} skill{filteredSkills.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Active filters */}
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t">
+                  {selectedCategories.map(cat => (
+                    <span
+                      key={cat}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm"
+                    >
+                      {cat}
                       <button
-                        className="text-gray-400 hover:text-red-500"
-                        onClick={() => deleteSkill(index)}
+                        onClick={() => toggleCategory(cat)}
+                        className="hover:text-orange-900"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <X className="w-3 h-3" />
                       </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Skills Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              {filteredSkills.map((skill, index) => (
+                <div
+                  key={`${skill.name}-${index}`}
+                  className="bg-white rounded-lg border p-5 hover:border-orange-300 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl">{skill.icon || '⚙️'}</div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">{skill.name}</h3>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          {skill.category}
+                        </span>
+                      </div>
+                    </div>
+                    {skill.isCustom && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded"
+                          onClick={() => {
+                            setNewSkill({
+                              name: skill.name,
+                              description: skill.description,
+                              template: skill.template,
+                              category: skill.category
+                            });
+                            setEditingSkill(skill);
+                            setShowSkillForm(true);
+                          }}
+                          title="Edit"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
+                        <button
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+                          onClick={() => deleteSkill(index)}
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-3">{skill.description}</p>
-                  <button className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Use Template
-                  </button>
-                  {skill.isCustom && (
-                    <span className="inline-block mt-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
-                      Custom
-                    </span>
-                  )}
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">{skill.description}</p>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => useTemplate(skill)}
+                      className="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-colors font-medium text-sm"
+                    >
+                      Use Template
+                    </button>
+                    {skill.isCustom && (
+                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">
+                        Custom
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* Empty state */}
+            {filteredSkills.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-lg border">
+                <div className="text-4xl mb-3">🔍</div>
+                <h3 className="font-semibold text-gray-900 mb-2">No skills found</h3>
+                <p className="text-gray-600 mb-4">
+                  {selectedCategories.length > 0 || skillSearchQuery
+                    ? 'Try adjusting your filters or search query'
+                    : 'Create your first skill or import from external sources'}
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    setSkillSearchQuery('');
+                  }}
+                  className="text-orange-600 hover:text-orange-700 font-medium"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+
+            {/* Click outside to close dropdowns */}
+            {(showCategoryFilter || showSortFilter) && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => {
+                  setShowCategoryFilter(false);
+                  setShowSortFilter(false);
+                }}
+              />
+            )}
           </div>
         )}
 
@@ -1287,10 +2029,84 @@ function QuestionCard({
   onAnswerChange: (id: string, value: string | string[]) => void;
   context?: Record<string, string | string[]>;
 }) {
-  const [showOther, setShowOther] = useState(false);
-  const [otherValue, setOtherValue] = useState('');
+  // Check if the current answer is an "Other" value (not in the predefined options)
+  const isOtherAnswer = (val: string | string[] | undefined): boolean => {
+    if (!val || !question.options) return false;
+    if (Array.isArray(val)) {
+      // For multiselect, check if any value is not in options
+      return val.some(v => !question.options!.includes(v));
+    }
+    // For select, check if the value is not in options
+    return !question.options.includes(val);
+  };
+
+  const getOtherValue = (val: string | string[] | undefined): string => {
+    if (!val || !question.options) return '';
+    if (Array.isArray(val)) {
+      // For multiselect, find the value not in options
+      const otherVal = val.find(v => !question.options!.includes(v));
+      return otherVal || '';
+    }
+    // For select, return the value if it's not in options
+    return question.options.includes(val) ? '' : val;
+  };
+
+  const [showOther, setShowOther] = useState(() => isOtherAnswer(answer));
+  const [otherValue, setOtherValue] = useState(() => getOtherValue(answer));
   const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [otherSuggestion, setOtherSuggestion] = useState<string | null>(null);
+  const [isLoadingOtherSuggestion, setIsLoadingOtherSuggestion] = useState(false);
+
+  // Update showOther and otherValue when answer changes externally (e.g., loading a session)
+  useEffect(() => {
+    const isOther = isOtherAnswer(answer);
+    const otherVal = getOtherValue(answer);
+    setShowOther(isOther);
+    setOtherValue(otherVal);
+  }, [answer, question.options]);
+
+  const fetchOtherSuggestion = async () => {
+    setIsLoadingOtherSuggestion(true);
+    setOtherSuggestion(null);
+    try {
+      const response = await fetch('/api/claude/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: {
+            role: context?.role,
+            experience: context?.experience,
+            industry: context?.industry,
+            previousAnswers: context,
+          },
+          question: `${question.question} (The user selected "Other" - suggest a specific custom answer that doesn't fit the standard options: ${question.options?.join(', ')})`,
+        }),
+      });
+      const data = await response.json();
+      if (data.suggestion) {
+        setOtherSuggestion(data.suggestion);
+      }
+    } catch (error) {
+      console.error('Failed to get AI suggestion:', error);
+    } finally {
+      setIsLoadingOtherSuggestion(false);
+    }
+  };
+
+  const applyOtherSuggestion = () => {
+    if (otherSuggestion) {
+      setOtherValue(otherSuggestion);
+      if (question.type === 'multiselect') {
+        const current = (answer as string[]) || [];
+        const filtered = current.filter(v => question.options?.includes(v));
+        onAnswerChange(question.id, [...filtered, otherSuggestion]);
+      } else {
+        onAnswerChange(question.id, otherSuggestion);
+      }
+      setOtherSuggestion(null);
+    }
+  };
 
   const fetchAISuggestion = async () => {
     setIsLoadingSuggestion(true);
@@ -1474,18 +2290,56 @@ function QuestionCard({
                 <span>Other (please specify)</span>
               </label>
               {showOther && (
-                <div className="ml-8 flex gap-2">
-                  <span className="text-xl">✍️</span>
-                  <input
-                    type="text"
-                    placeholder="Please describe..."
-                    value={otherValue}
-                    onChange={e => {
-                      setOtherValue(e.target.value);
-                      onAnswerChange(question.id, e.target.value);
-                    }}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
-                  />
+                <div className="ml-8 space-y-2">
+                  <div className="flex gap-2">
+                    <span className="text-xl">✍️</span>
+                    <input
+                      type="text"
+                      placeholder="Please describe..."
+                      value={otherValue}
+                      onChange={e => {
+                        setOtherValue(e.target.value);
+                        onAnswerChange(question.id, e.target.value);
+                      }}
+                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                    />
+                    <button
+                      onClick={fetchOtherSuggestion}
+                      disabled={isLoadingOtherSuggestion}
+                      className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                    >
+                      {isLoadingOtherSuggestion ? (
+                        <Loader2 className="w-4 h-4 text-orange-600 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 text-orange-600" />
+                      )}
+                      <span>{isLoadingOtherSuggestion ? 'Thinking...' : 'AI Suggest'}</span>
+                    </button>
+                  </div>
+                  {otherSuggestion && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 ml-7">
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">💡</span>
+                        <div className="flex-1">
+                          <p className="text-sm text-purple-900 mb-2">{otherSuggestion}</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={applyOtherSuggestion}
+                              className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                            >
+                              Use this
+                            </button>
+                            <button
+                              onClick={() => setOtherSuggestion(null)}
+                              className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1534,21 +2388,63 @@ function QuestionCard({
                 <span>Other (please specify)</span>
               </label>
               {showOther && (
-                <div className="ml-8 flex gap-2">
-                  <span className="text-xl">✍️</span>
-                  <input
-                    type="text"
-                    placeholder="Please describe..."
-                    value={otherValue}
-                    onChange={e => {
-                      setOtherValue(e.target.value);
-                      const current = (answer as string[]) || [];
-                      if (!current.includes(e.target.value) && e.target.value) {
-                        onAnswerChange(question.id, [...current.filter(v => v !== otherValue), e.target.value]);
-                      }
-                    }}
-                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
-                  />
+                <div className="ml-8 space-y-2">
+                  <div className="flex gap-2">
+                    <span className="text-xl">✍️</span>
+                    <input
+                      type="text"
+                      placeholder="Please describe..."
+                      value={otherValue}
+                      onChange={e => {
+                        setOtherValue(e.target.value);
+                        const current = (answer as string[]) || [];
+                        // Filter out old other value, keep standard options, add new other value
+                        const standardOptions = current.filter(v => question.options?.includes(v));
+                        if (e.target.value) {
+                          onAnswerChange(question.id, [...standardOptions, e.target.value]);
+                        } else {
+                          onAnswerChange(question.id, standardOptions);
+                        }
+                      }}
+                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-600"
+                    />
+                    <button
+                      onClick={fetchOtherSuggestion}
+                      disabled={isLoadingOtherSuggestion}
+                      className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
+                    >
+                      {isLoadingOtherSuggestion ? (
+                        <Loader2 className="w-4 h-4 text-orange-600 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 text-orange-600" />
+                      )}
+                      <span>{isLoadingOtherSuggestion ? 'Thinking...' : 'AI Suggest'}</span>
+                    </button>
+                  </div>
+                  {otherSuggestion && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 ml-7">
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">💡</span>
+                        <div className="flex-1">
+                          <p className="text-sm text-purple-900 mb-2">{otherSuggestion}</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={applyOtherSuggestion}
+                              className="text-xs px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700"
+                            >
+                              Use this
+                            </button>
+                            <button
+                              onClick={() => setOtherSuggestion(null)}
+                              className="text-xs px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

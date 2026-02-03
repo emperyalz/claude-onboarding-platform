@@ -33,6 +33,8 @@ interface SessionSelectorProps {
   currentData: unknown;
   onLoadSession: (data: unknown) => void;
   tabLabel?: string;
+  currentSessionId?: Id<'sessions'> | null;
+  onSessionChange?: (sessionId: Id<'sessions'> | null) => void;
 }
 
 export default function SessionSelector({
@@ -41,14 +43,18 @@ export default function SessionSelector({
   currentData,
   onLoadSession,
   tabLabel = 'session',
+  currentSessionId,
+  onSessionChange,
 }: SessionSelectorProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSaveAsModal, setShowSaveAsModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [editingSessionId, setEditingSessionId] = useState<Id<'sessions'> | null>(null);
   const [editingName, setEditingName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showSaveDropdown, setShowSaveDropdown] = useState(false);
 
   // Convex queries and mutations
   const sessions = useQuery(
@@ -62,6 +68,11 @@ export default function SessionSelector({
   const deleteSession = useMutation(api.sessions.deleteSession);
   const duplicateSession = useMutation(api.sessions.duplicateSession);
 
+  // Get current session details if we have a currentSessionId
+  const currentSession = currentSessionId
+    ? sessions?.find(s => s._id === currentSessionId)
+    : null;
+
   const handleSaveNew = async () => {
     if (!newSessionName.trim()) {
       toast.error('Please enter a session name');
@@ -69,7 +80,7 @@ export default function SessionSelector({
     }
     setIsSaving(true);
     try {
-      await createSession({
+      const newId = await createSession({
         email: userEmail,
         name: newSessionName.trim(),
         tabType,
@@ -78,6 +89,11 @@ export default function SessionSelector({
       toast.success(`Session "${newSessionName}" saved!`);
       setNewSessionName('');
       setShowSaveModal(false);
+      setShowSaveAsModal(false);
+      // Track the new session as current
+      if (onSessionChange && newId) {
+        onSessionChange(newId as Id<'sessions'>);
+      }
     } catch (error) {
       console.error('Failed to save session:', error);
       toast.error('Failed to save session');
@@ -86,10 +102,38 @@ export default function SessionSelector({
     }
   };
 
+  // Save Progress - autosave to current session or prompt for new
+  const handleSaveProgress = async () => {
+    if (currentSessionId) {
+      // Autosave to current session
+      setIsSaving(true);
+      try {
+        await updateSession({
+          sessionId: currentSessionId,
+          data: currentData,
+        });
+        toast.success(`Progress saved to "${currentSession?.name || 'session'}"!`);
+      } catch (error) {
+        console.error('Failed to save progress:', error);
+        toast.error('Failed to save progress');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // No current session, prompt for new
+      setShowSaveModal(true);
+    }
+    setShowSaveDropdown(false);
+  };
+
   const handleLoadSession = (session: Session) => {
     onLoadSession(session.data);
     toast.success(`Loaded "${session.name}"`);
     setIsOpen(false);
+    // Track this as the current session
+    if (onSessionChange) {
+      onSessionChange(session._id);
+    }
   };
 
   const handleUpdateCurrent = async (sessionId: Id<'sessions'>) => {
@@ -158,14 +202,68 @@ export default function SessionSelector({
     <div className="relative">
       {/* Main Button Group */}
       <div className="flex items-center gap-2">
-        {/* Save Button */}
-        <button
-          onClick={() => setShowSaveModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
-        >
-          <Save className="w-4 h-4" />
-          Save Progress
-        </button>
+        {/* Save Button with Dropdown */}
+        <div className="relative">
+          <div className="flex">
+            {/* Main Save Button */}
+            <button
+              onClick={handleSaveProgress}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-l-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">
+                {currentSession ? `Save to "${currentSession.name}"` : 'Save Progress'}
+              </span>
+              <span className="sm:hidden">Save</span>
+            </button>
+            {/* Dropdown Toggle */}
+            <button
+              onClick={() => setShowSaveDropdown(!showSaveDropdown)}
+              className="px-2 py-2 bg-orange-600 text-white rounded-r-lg hover:bg-orange-700 transition-colors border-l border-orange-500"
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform ${showSaveDropdown ? 'rotate-180' : ''}`} />
+            </button>
+          </div>
+
+          {/* Save Dropdown Menu */}
+          {showSaveDropdown && (
+            <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-lg shadow-lg border z-50">
+              <button
+                onClick={handleSaveProgress}
+                disabled={isSaving}
+                className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b"
+              >
+                <Save className="w-4 h-4 text-gray-600" />
+                <div>
+                  <p className="font-medium text-gray-900">Save Progress</p>
+                  <p className="text-xs text-gray-500">
+                    {currentSession
+                      ? `Overwrite "${currentSession.name}"`
+                      : 'Save to a new session'}
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={() => {
+                  setShowSaveDropdown(false);
+                  setShowSaveAsModal(true);
+                }}
+                className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+              >
+                <Plus className="w-4 h-4 text-gray-600" />
+                <div>
+                  <p className="font-medium text-gray-900">Save New/As</p>
+                  <p className="text-xs text-gray-500">Save as a new named session</p>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Sessions Dropdown */}
         <div className="relative">
@@ -416,9 +514,64 @@ export default function SessionSelector({
         </div>
       )}
 
-      {/* Click outside to close dropdown */}
-      {isOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+      {/* Save As Modal */}
+      {showSaveAsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Save As New Session</h3>
+              <button
+                onClick={() => setShowSaveAsModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Save your current progress as a new named session.
+            </p>
+            <input
+              type="text"
+              placeholder="Enter session name (e.g., 'Work Profile Draft')"
+              value={newSessionName}
+              onChange={(e) => setNewSessionName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveNew()}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-orange-600 focus:border-orange-600"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSaveNew}
+                disabled={isSaving || !newSessionName.trim()}
+                className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                Save New Session
+              </button>
+              <button
+                onClick={() => setShowSaveAsModal(false)}
+                className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close dropdowns */}
+      {(isOpen || showSaveDropdown) && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setIsOpen(false);
+            setShowSaveDropdown(false);
+          }}
+        />
       )}
     </div>
   );
