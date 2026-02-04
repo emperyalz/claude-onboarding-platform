@@ -1909,141 +1909,615 @@ QueXopa demonstrates strong technical curiosity...`}
   );
 }
 
-// TAB 5: Develop Projects - exact match to original design
+// TAB 5: Develop Projects - Full Implementation
 function DevelopProjectsTab({ userEmail }: { userEmail: string }) {
-  const [showUpload, setShowUpload] = useState(false);
-  const [projectContext, setProjectContext] = useState(`# Project Context
+  // Project state
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectName, setActiveProjectName] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-## Purpose
-Customer analytics dashboard for SaaS companies...
+  // Section editing state
+  const [expandedSection, setExpandedSection] = useState<number>(0);
+  const [editingSection, setEditingSection] = useState<number | null>(null);
+  const [sectionContent, setSectionContent] = useState<Record<number, string>>({});
 
-## Goals
-- Real-time metrics visualization
-- Custom report builder`);
+  // AI generation state
+  const [generatingSection, setGeneratingSection] = useState<number | null>(null);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [showAiPromptFor, setShowAiPromptFor] = useState<number | null>(null);
+
+  // File upload state
+  const [uploadingSection, setUploadingSection] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadTargetSection, setUploadTargetSection] = useState<number | null>(null);
+
+  // Auto-save debounce
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Convex hooks
+  const projectsQuery = useQuery(api.projects.getProjects, userEmail ? { email: userEmail } : 'skip');
+  const saveProjectMutation = useMutation(api.projects.saveProject);
+  const deleteProjectMutation = useMutation(api.projects.deleteProject);
+  const updateSectionMutation = useMutation(api.projects.updateProjectSection);
+
+  // Section templates
+  const sectionTemplates = [
+    { title: 'Context', placeholder: 'Describe the project background, goals, and stakeholders...', icon: '📋', color: 'orange' },
+    { title: 'Tech Stack', placeholder: 'List technologies, frameworks, and tools used...', icon: '🛠️', color: 'blue' },
+    { title: 'Architecture', placeholder: 'Describe the system architecture and key components...', icon: '🏗️', color: 'purple' },
+    { title: 'Database Schema', placeholder: 'Document database tables, relationships, and key fields...', icon: '🗄️', color: 'green', allowUpload: true, uploadTypes: '.sql,.json,.csv' },
+    { title: 'API Endpoints', placeholder: 'List API routes, methods, and expected payloads...', icon: '🔌', color: 'yellow' },
+    { title: 'UI/UX Guidelines', placeholder: 'Describe design system, components, and user flows...', icon: '🎨', color: 'pink', allowUpload: true, uploadTypes: 'image/*' },
+    { title: 'Deployment', placeholder: 'Document deployment process, environments, and CI/CD...', icon: '🚀', color: 'indigo' },
+    { title: 'Known Issues', placeholder: 'List current bugs, limitations, and technical debt...', icon: '⚠️', color: 'red' },
+  ];
+
+  // Load projects from Convex
+  useEffect(() => {
+    if (projectsQuery) {
+      const loadedProjects = projectsQuery.map((p) => ({
+        name: p.name,
+        sections: p.sections as ProjectSection[],
+      }));
+      setProjects(loadedProjects);
+
+      // Set first project as active if none selected
+      if (!activeProjectName && loadedProjects.length > 0) {
+        setActiveProjectName(loadedProjects[0].name);
+      }
+    }
+  }, [projectsQuery, activeProjectName]);
+
+  // Get active project
+  const activeProject = projects.find(p => p.name === activeProjectName);
+
+  // Calculate completed sections
+  const completedSections = activeProject?.sections.filter(s => s.content.trim().length > 0).length || 0;
+
+  // Create new project
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim() || !userEmail) return;
+
+    const emptySections = sectionTemplates.map(t => ({ title: t.title, content: '' }));
+
+    try {
+      await saveProjectMutation({
+        email: userEmail,
+        name: newProjectName.trim(),
+        sections: emptySections,
+      });
+
+      setProjects(prev => [...prev, { name: newProjectName.trim(), sections: emptySections }]);
+      setActiveProjectName(newProjectName.trim());
+      setNewProjectName('');
+      setIsCreating(false);
+      toast.success('Project created!');
+    } catch (error) {
+      toast.error('Failed to create project');
+    }
+  };
+
+  // Delete project
+  const handleDeleteProject = async (projectName: string) => {
+    if (!userEmail) return;
+
+    try {
+      await deleteProjectMutation({ email: userEmail, name: projectName });
+      setProjects(prev => prev.filter(p => p.name !== projectName));
+
+      if (activeProjectName === projectName) {
+        const remaining = projects.filter(p => p.name !== projectName);
+        setActiveProjectName(remaining.length > 0 ? remaining[0].name : null);
+      }
+
+      setDeleteConfirm(null);
+      toast.success('Project deleted');
+    } catch (error) {
+      toast.error('Failed to delete project');
+    }
+  };
+
+  // Update section content with debounced save
+  const handleSectionChange = (sectionIndex: number, content: string) => {
+    // Update local state immediately
+    setProjects(prev => prev.map(p => {
+      if (p.name === activeProjectName) {
+        const newSections = [...p.sections];
+        newSections[sectionIndex] = { ...newSections[sectionIndex], content };
+        return { ...p, sections: newSections };
+      }
+      return p;
+    }));
+
+    // Debounced save to Convex
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setIsSaving(true);
+    saveTimeoutRef.current = setTimeout(async () => {
+      if (!userEmail || !activeProjectName) return;
+
+      try {
+        await updateSectionMutation({
+          email: userEmail,
+          name: activeProjectName,
+          sectionIndex,
+          content,
+        });
+        setLastSaved(new Date());
+      } catch (error) {
+        console.error('Failed to save section:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    }, 500);
+  };
+
+  // Generate section content with AI
+  const handleAIGenerate = async (sectionIndex: number) => {
+    if (!activeProject || !activeProjectName) return;
+
+    setGeneratingSection(sectionIndex);
+    setShowAiPromptFor(null);
+
+    try {
+      const response = await fetch('/api/projects/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectName: activeProjectName,
+          sectionTitle: sectionTemplates[sectionIndex].title,
+          existingContent: activeProject.sections[sectionIndex]?.content || '',
+          userPrompt: aiPrompt,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.content) {
+        handleSectionChange(sectionIndex, data.content);
+        toast.success('Content generated!');
+      } else {
+        toast.error('Failed to generate content');
+      }
+    } catch (error) {
+      toast.error('Failed to generate content');
+    } finally {
+      setGeneratingSection(null);
+      setAiPrompt('');
+    }
+  };
+
+  // Handle file upload for analysis
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, sectionIndex: number) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeProjectName) return;
+
+    setUploadingSection(sectionIndex);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sectionTitle', sectionTemplates[sectionIndex].title);
+      formData.append('projectName', activeProjectName);
+
+      const response = await fetch('/api/projects/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.content) {
+        handleSectionChange(sectionIndex, data.content);
+        toast.success('File analyzed and content generated!');
+      } else {
+        toast.error('Failed to analyze file');
+      }
+    } catch (error) {
+      toast.error('Failed to analyze file');
+    } finally {
+      setUploadingSection(null);
+      setUploadTargetSection(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Export project as markdown
+  const handleExport = () => {
+    if (!activeProject || !activeProjectName) return;
+
+    let markdown = `# ${activeProjectName}\n\n`;
+    markdown += `*Exported from Claude Onboarding Platform*\n\n---\n\n`;
+
+    activeProject.sections.forEach((section, idx) => {
+      markdown += `## ${idx + 1}. ${section.title}\n\n`;
+      markdown += section.content || '*No content yet*';
+      markdown += '\n\n---\n\n';
+    });
+
+    const blob = new Blob([markdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeProjectName.toLowerCase().replace(/\s+/g, '-')}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    toast.success('Project exported!');
+  };
 
   return (
     <div className="grid grid-cols-12 gap-6">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => uploadTargetSection !== null && handleFileUpload(e, uploadTargetSection)}
+        accept={uploadTargetSection !== null ? sectionTemplates[uploadTargetSection]?.uploadTypes : ''}
+      />
+
+      {/* Left Sidebar - Project List */}
       <div className="col-span-3">
-        <div className="bg-white rounded-xl border p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold">Projects</h3>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden sticky top-4">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
+            <h3 className="font-semibold text-gray-900">My Projects</h3>
+            <button
+              onClick={() => setIsCreating(true)}
+              className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+              title="Create new project"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
+
+          {/* Session Selector */}
           {userEmail && (
-            <div className="mb-4">
+            <div className="p-4 border-b border-gray-100">
               <SessionSelector
                 userEmail={userEmail}
                 tabType="projects"
-                currentData={{ projectContext, showUpload }}
+                currentData={{ projects, activeProjectName }}
                 onLoadSession={(data: unknown) => {
-                  const sessionData = data as { projectContext: string; showUpload: boolean };
-                  setProjectContext(sessionData.projectContext || '');
-                  setShowUpload(sessionData.showUpload || false);
+                  const sessionData = data as { projects?: Project[]; activeProjectName?: string };
+                  if (sessionData.projects) setProjects(sessionData.projects);
+                  if (sessionData.activeProjectName) setActiveProjectName(sessionData.activeProjectName);
                 }}
                 tabLabel="project session"
               />
             </div>
           )}
-          <div className="p-3 bg-orange-600 text-white rounded-lg mb-2 cursor-pointer">📁 SaaS Dashboard</div>
-          <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer">📁 E-commerce</div>
-        </div>
-      </div>
 
-      <div className="col-span-9 space-y-4">
-        <div className="bg-white rounded-xl border p-6">
-          <h2 className="text-2xl font-bold mb-2">SaaS Dashboard</h2>
-          <div className="bg-gray-200 rounded-full h-2 mb-2">
-            <div className="bg-orange-600 h-full rounded-full" style={{width: '33%'}}></div>
-          </div>
-          <p className="text-sm text-gray-600">2 of 6 sections completed</p>
-        </div>
-
-        {/* Context Section */}
-        <div className="bg-white rounded-lg border-2 border-orange-600 p-5">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-semibold text-lg">1. Project Context</h3>
-            <button onClick={() => setShowUpload(!showUpload)} className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 flex items-center gap-2">
-              <span className="text-xl">✨</span>
-              Generate with AI
-            </button>
-          </div>
-
-          {showUpload && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-900 font-medium mb-3">Let AI write this section for you:</p>
-              <textarea placeholder="Describe your project... (e.g., 'A customer analytics dashboard for SaaS companies')" rows={3} className="w-full px-4 py-3 border rounded-lg mb-3" />
-              <button className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
-                Generate Context Section
-              </button>
+          {/* Create Project Modal */}
+          {isCreating && (
+            <div className="p-4 border-b border-gray-100 bg-orange-50">
+              <p className="text-sm font-medium text-gray-700 mb-2">New Project</p>
+              <input
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Project name..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-2"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateProject()}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCreateProject}
+                  disabled={!newProjectName.trim()}
+                  className="flex-1 px-3 py-1.5 bg-orange-600 text-white rounded-lg text-sm hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create
+                </button>
+                <button
+                  onClick={() => { setIsCreating(false); setNewProjectName(''); }}
+                  className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           )}
 
-          <textarea
-            rows={6}
-            placeholder="Or write manually..."
-            className="w-full px-4 py-3 border rounded-lg"
-            value={projectContext}
-            onChange={(e) => setProjectContext(e.target.value)}
-          />
-        </div>
+          {/* Project List */}
+          <div className="max-h-[400px] overflow-y-auto">
+            {projects.length === 0 ? (
+              <div className="p-6 text-center text-gray-500">
+                <FolderOpen className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No projects yet</p>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="mt-2 text-sm text-orange-600 hover:text-orange-700"
+                >
+                  Create your first project
+                </button>
+              </div>
+            ) : (
+              projects.map((project) => {
+                const completed = project.sections.filter(s => s.content.trim().length > 0).length;
+                const isActive = activeProjectName === project.name;
 
-        {/* Schema Section */}
-        <div className="bg-white rounded-lg border p-5">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-semibold text-lg">3. Data Schema</h3>
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
+                return (
+                  <div
+                    key={project.name}
+                    className={`group p-4 flex items-center gap-3 cursor-pointer transition-all border-l-4 ${
+                      isActive
+                        ? 'bg-orange-50 border-l-orange-600'
+                        : 'hover:bg-gray-50 border-l-transparent'
+                    }`}
+                    onClick={() => setActiveProjectName(project.name)}
+                  >
+                    <FolderOpen className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-orange-600' : 'text-gray-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-medium truncate ${isActive ? 'text-orange-900' : 'text-gray-700'}`}>
+                        {project.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {completed}/{project.sections.length} sections
+                      </p>
+                    </div>
+
+                    {/* Delete button */}
+                    {deleteConfirm === project.name ? (
+                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleDeleteProject(project.name)}
+                          className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          title="Confirm delete"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm(null)}
+                          className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                          title="Cancel"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteConfirm(project.name); }}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete project"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
+        </div>
+      </div>
 
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-3">📁</div>
-            <p className="text-gray-700 font-medium mb-2">Upload Files or Describe</p>
-            <p className="text-sm text-gray-600 mb-4">Upload: Database dumps, API responses, spreadsheets</p>
-            <div className="flex gap-3 justify-center">
-              <button className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
-                Upload Files
-              </button>
-              <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">
-                Describe Instead
-              </button>
+      {/* Main Content - Project Editor */}
+      <div className="col-span-9 space-y-4">
+        {!activeProject ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+            <FolderOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Project Selected</h3>
+            <p className="text-gray-500 mb-4">Create a new project or select one from the sidebar</p>
+            <button
+              onClick={() => setIsCreating(true)}
+              className="px-6 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Create New Project
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Project Header */}
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{activeProject.name}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Document your project for Claude to understand
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {isSaving && (
+                    <span className="text-sm text-gray-400 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Saving...
+                    </span>
+                  )}
+                  {lastSaved && !isSaving && (
+                    <span className="text-xs text-gray-400">
+                      Saved {lastSaved.toLocaleTimeString()}
+                    </span>
+                  )}
+                  <button
+                    onClick={handleExport}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export for Claude
+                  </button>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="mb-2">
+                <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-orange-500 to-orange-600 h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(completedSections / 8) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">
+                  {completedSections} of 8 sections completed
+                </span>
+                {completedSections === 8 && (
+                  <span className="text-green-600 font-medium flex items-center gap-1">
+                    <Check className="w-4 h-4" /> Ready to export
+                  </span>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-3">AI will analyze and generate schema</p>
-          </div>
-        </div>
 
-        {/* UX Section */}
-        <div className="bg-white rounded-lg border p-5">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-semibold text-lg">5. UX Guidelines</h3>
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
-          </div>
+            {/* Section Cards */}
+            <div className="space-y-3">
+              {sectionTemplates.map((template, index) => {
+                const section = activeProject.sections[index];
+                const hasContent = section?.content?.trim().length > 0;
+                const isExpanded = expandedSection === index;
+                const isEditing = editingSection === index;
+                const isGenerating = generatingSection === index;
+                const isUploading = uploadingSection === index;
 
-          <div className="border-2 border-dashed border-purple-300 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-3">🎥</div>
-            <p className="text-gray-700 font-medium mb-2">Upload User Flow Videos or Screenshots</p>
-            <p className="text-sm text-gray-600 mb-4">AI will watch/analyze and generate UX guidelines</p>
-            <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
-              Upload Videos/Screenshots
-            </button>
-            <p className="text-xs text-gray-500 mt-3">Supported: MP4, MOV, PNG, JPG</p>
-          </div>
-        </div>
+                return (
+                  <div
+                    key={template.title}
+                    className={`bg-white rounded-xl border-2 transition-all ${
+                      isExpanded ? 'border-orange-500 shadow-sm' : 'border-gray-200 hover:border-gray-300'
+                    } ${hasContent ? 'ring-1 ring-green-100' : ''}`}
+                  >
+                    {/* Section Header */}
+                    <div
+                      className="p-5 flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedSection(isExpanded ? -1 : index)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                          hasContent ? 'bg-green-100' : 'bg-gray-100'
+                        }`}>
+                          {hasContent ? <Check className="w-5 h-5 text-green-600" /> : template.icon}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{index + 1}. {template.title}</h3>
+                          <p className="text-sm text-gray-500">{template.placeholder.slice(0, 50)}...</p>
+                        </div>
+                      </div>
+                      <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
 
-        {/* UI Section */}
-        <div className="bg-white rounded-lg border p-5">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="font-semibold text-lg">6. UI Guidelines</h3>
-            <button className="px-4 py-2 bg-white border rounded-lg hover:bg-gray-50">Edit</button>
-          </div>
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="px-5 pb-5 border-t border-gray-100">
+                        {/* AI Prompt Input */}
+                        {showAiPromptFor === index && (
+                          <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                            <p className="text-sm font-medium text-purple-900 mb-2">
+                              Describe what you want AI to generate:
+                            </p>
+                            <textarea
+                              value={aiPrompt}
+                              onChange={(e) => setAiPrompt(e.target.value)}
+                              placeholder={`E.g., "Generate ${template.title.toLowerCase()} for a React e-commerce app with Node.js backend..."`}
+                              rows={3}
+                              className="w-full px-3 py-2 border border-purple-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500 mb-3"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleAIGenerate(index)}
+                                disabled={isGenerating}
+                                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm disabled:opacity-50"
+                              >
+                                {isGenerating ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Sparkles className="w-4 h-4" />
+                                )}
+                                Generate
+                              </button>
+                              <button
+                                onClick={() => { setShowAiPromptFor(null); setAiPrompt(''); }}
+                                className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
-          <div className="border-2 border-dashed border-green-300 rounded-lg p-8 text-center">
-            <div className="text-4xl mb-3">🎨</div>
-            <p className="text-gray-700 font-medium mb-2">Upload UI Screenshots You Like</p>
-            <p className="text-sm text-gray-600 mb-4">AI will analyze: colors, spacing, typography, components</p>
-            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-              Upload UI Examples
-            </button>
-            <p className="text-xs text-gray-500 mt-3">AI generates design guidelines from your examples</p>
-          </div>
-        </div>
+                        {/* Content Area */}
+                        <div className="mt-4">
+                          {isEditing ? (
+                            <textarea
+                              value={section?.content || ''}
+                              onChange={(e) => handleSectionChange(index, e.target.value)}
+                              rows={12}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono text-sm"
+                              placeholder={template.placeholder}
+                            />
+                          ) : (
+                            <div className="p-4 bg-gray-50 rounded-lg min-h-[150px] whitespace-pre-wrap text-sm">
+                              {section?.content || (
+                                <span className="text-gray-400 italic">
+                                  No content yet. Click Edit or Generate with AI to get started.
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <button
+                            onClick={() => setEditingSection(isEditing ? null : index)}
+                            className={`px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors ${
+                              isEditing
+                                ? 'bg-orange-600 text-white hover:bg-orange-700'
+                                : 'bg-white border border-gray-300 hover:bg-gray-50'
+                            }`}
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            {isEditing ? 'Done Editing' : 'Edit'}
+                          </button>
+
+                          <button
+                            onClick={() => showAiPromptFor === index ? handleAIGenerate(index) : setShowAiPromptFor(index)}
+                            disabled={isGenerating}
+                            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+                          >
+                            {isGenerating ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-4 h-4" />
+                            )}
+                            {isGenerating ? 'Generating...' : 'Generate with AI'}
+                          </button>
+
+                          {/* Upload button for specific sections */}
+                          {template.allowUpload && (
+                            <button
+                              onClick={() => {
+                                setUploadTargetSection(index);
+                                fileInputRef.current?.click();
+                              }}
+                              disabled={isUploading}
+                              className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+                            >
+                              {isUploading ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Upload className="w-4 h-4" />
+                              )}
+                              {isUploading ? 'Analyzing...' : template.title === 'Database Schema' ? 'Upload Schema File' : 'Upload Screenshot'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
