@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 import toast from 'react-hot-toast';
 import SessionSelector from '../../../components/SessionSelector';
 import { useSessionContext } from '../../../contexts/SessionContext';
@@ -27,6 +28,7 @@ import {
   ArrowUpDown,
   Search,
   Edit3,
+  Save,
 } from 'lucide-react';
 
 type Tab = 'preferences' | 'memory' | 'skills' | 'files' | 'projects';
@@ -1909,6 +1911,201 @@ QueXopa demonstrates strong technical curiosity...`}
   );
 }
 
+// Project Session Manager - Compact Sidebar Component
+function ProjectSessionManager({
+  userEmail,
+  projects,
+  activeProjectName,
+  onLoadSession,
+}: {
+  userEmail: string;
+  projects: Project[];
+  activeProjectName: string | null;
+  onLoadSession: (projects: Project[], activeProject: string | null) => void;
+}) {
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [sessionName, setSessionName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  // Convex hooks
+  const sessions = useQuery(
+    api.sessions.getSessionsByTab,
+    userEmail ? { email: userEmail, tabType: 'projects' } : 'skip'
+  ) as Array<{ _id: string; name: string; data: unknown; updatedAt: number }> | undefined;
+
+  const createSession = useMutation(api.sessions.createSession);
+  const deleteSessionMutation = useMutation(api.sessions.deleteSession);
+
+  const handleSave = async () => {
+    if (!sessionName.trim()) {
+      toast.error('Please enter a session name');
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await createSession({
+        email: userEmail,
+        name: sessionName.trim(),
+        tabType: 'projects',
+        data: { projects, activeProjectName },
+      });
+      toast.success(`Session "${sessionName}" saved!`);
+      setSessionName('');
+      setShowSaveModal(false);
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save session');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLoad = (session: { _id: string; name: string; data: unknown }) => {
+    const data = session.data as { projects?: Project[]; activeProjectName?: string };
+    if (data.projects) {
+      onLoadSession(data.projects, data.activeProjectName || null);
+      toast.success(`Loaded "${session.name}"`);
+    }
+    setShowLoadModal(false);
+  };
+
+  const handleDelete = async (sessionId: string, name: string) => {
+    if (!confirm(`Delete "${name}"?`)) return;
+    try {
+      await deleteSessionMutation({ sessionId: sessionId as Id<'sessions'> });
+      toast.success('Session deleted');
+    } catch (error) {
+      toast.error('Failed to delete');
+    }
+  };
+
+  return (
+    <>
+      {/* Compact Session Controls */}
+      <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex items-center gap-2">
+          {/* Save Button */}
+          <button
+            onClick={() => setShowSaveModal(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <Save className="w-4 h-4" />
+            Save
+          </button>
+
+          {/* Load Button with Count */}
+          <button
+            onClick={() => setShowLoadModal(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <FolderOpen className="w-4 h-4" />
+            Load ({sessions?.length || 0})
+          </button>
+        </div>
+      </div>
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowSaveModal(false)}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Save Project Session</h3>
+              <button onClick={() => setShowSaveModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Save all your projects and their content to restore later.
+            </p>
+            <input
+              type="text"
+              placeholder="Session name (e.g., 'My Work Projects')"
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+              autoFocus
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !sessionName.trim()}
+                className="flex-1 px-4 py-2.5 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save Session
+              </button>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="px-4 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowLoadModal(false)}>
+          <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Load Project Session</h3>
+              <button onClick={() => setShowLoadModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {sessions && sessions.length > 0 ? (
+                <div className="space-y-2">
+                  {sessions.map((session) => (
+                    <div
+                      key={session._id}
+                      className="p-4 border rounded-lg hover:border-orange-300 hover:bg-orange-50/50 cursor-pointer transition-colors group"
+                      onClick={() => handleLoad(session)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{session.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(session.updatedAt).toLocaleDateString('en-US', {
+                              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(session._id, session.name);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Delete session"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <FolderOpen className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="font-medium">No saved sessions</p>
+                  <p className="text-sm mt-1">Save your projects to load them later</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 // TAB 5: Develop Projects - Full Implementation
 function DevelopProjectsTab({ userEmail }: { userEmail: string }) {
   // Project state
@@ -2178,21 +2375,17 @@ function DevelopProjectsTab({ userEmail }: { userEmail: string }) {
             </button>
           </div>
 
-          {/* Session Selector */}
+          {/* Session Management - Compact Sidebar Version */}
           {userEmail && (
-            <div className="p-4 border-b border-gray-100">
-              <SessionSelector
-                userEmail={userEmail}
-                tabType="projects"
-                currentData={{ projects, activeProjectName }}
-                onLoadSession={(data: unknown) => {
-                  const sessionData = data as { projects?: Project[]; activeProjectName?: string };
-                  if (sessionData.projects) setProjects(sessionData.projects);
-                  if (sessionData.activeProjectName) setActiveProjectName(sessionData.activeProjectName);
-                }}
-                tabLabel="project session"
-              />
-            </div>
+            <ProjectSessionManager
+              userEmail={userEmail}
+              projects={projects}
+              activeProjectName={activeProjectName}
+              onLoadSession={(loadedProjects, loadedActiveProject) => {
+                setProjects(loadedProjects);
+                if (loadedActiveProject) setActiveProjectName(loadedActiveProject);
+              }}
+            />
           )}
 
           {/* Create Project Modal */}
