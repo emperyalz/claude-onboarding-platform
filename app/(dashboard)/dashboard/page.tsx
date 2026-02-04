@@ -1081,6 +1081,13 @@ export default function DashboardPage() {
                       setAnswers(sessionData.answers || {});
                       setPhase(sessionData.phase || 1);
                     }}
+                    onStartFresh={() => {
+                      setAnswers({});
+                      setPhase(1);
+                      setCurrentQuestion(0);
+                      setPreferencesComplete(false);
+                      setAiSuggestion(null);
+                    }}
                     tabLabel="session"
                   />
                 )}
@@ -1277,6 +1284,10 @@ export default function DashboardPage() {
                       setMemories(sessionData.memories || []);
                       setNewMemory(sessionData.newMemory || { category: 'Work', content: '' });
                     }}
+                    onStartFresh={() => {
+                      setMemories([]);
+                      setNewMemory({ category: 'Work', content: '' });
+                    }}
                     tabLabel="memory session"
                   />
                 )}
@@ -1423,6 +1434,12 @@ QueXopa demonstrates strong technical curiosity...`}
                       setSkills(sessionData.skills || defaultSkills);
                       setNewSkill(sessionData.newSkill || { name: '', description: '', template: '', category: '' });
                       setShowSkillForm(sessionData.showSkillForm || false);
+                    }}
+                    onStartFresh={() => {
+                      setSkills(defaultSkills);
+                      setNewSkill({ name: '', description: '', template: '', category: '' });
+                      setShowSkillForm(false);
+                      setEditingSkill(null);
                     }}
                     tabLabel="skill session"
                   />
@@ -1818,6 +1835,9 @@ QueXopa demonstrates strong technical curiosity...`}
                       const sessionData = data as { generatedFile: string };
                       setGeneratedFile(sessionData.generatedFile || '');
                     }}
+                    onStartFresh={() => {
+                      setGeneratedFile('');
+                    }}
                     tabLabel="file session"
                   />
                 )}
@@ -1917,11 +1937,13 @@ function ProjectSessionManager({
   projects,
   activeProjectName,
   onLoadSession,
+  onStartFresh,
 }: {
   userEmail: string;
   projects: Project[];
   activeProjectName: string | null;
   onLoadSession: (projects: Project[], activeProject: string | null) => void;
+  onStartFresh?: () => void;
 }) {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -2004,6 +2026,22 @@ function ProjectSessionManager({
             Load ({sessions?.length || 0})
           </button>
         </div>
+
+        {/* Start Fresh Button */}
+        {onStartFresh && (
+          <button
+            onClick={() => {
+              if (confirm('Start fresh? This will clear all projects (unsaved changes will be lost).')) {
+                onStartFresh();
+                toast.success('Started fresh!');
+              }
+            }}
+            className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 text-red-600 text-xs font-medium hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <X className="w-3 h-3" />
+            Start Fresh
+          </button>
+        )}
       </div>
 
       {/* Save Modal */}
@@ -2384,6 +2422,10 @@ function DevelopProjectsTab({ userEmail }: { userEmail: string }) {
               onLoadSession={(loadedProjects, loadedActiveProject) => {
                 setProjects(loadedProjects);
                 if (loadedActiveProject) setActiveProjectName(loadedActiveProject);
+              }}
+              onStartFresh={() => {
+                setProjects([]);
+                setActiveProjectName(null);
               }}
             />
           )}

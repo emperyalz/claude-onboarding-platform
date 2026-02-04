@@ -32,6 +32,7 @@ interface SessionSelectorProps {
   tabType: string;
   currentData: unknown;
   onLoadSession: (data: unknown) => void;
+  onStartFresh?: () => void;
   tabLabel?: string;
   currentSessionId?: Id<'sessions'> | null;
   onSessionChange?: (sessionId: Id<'sessions'> | null) => void;
@@ -42,6 +43,7 @@ export default function SessionSelector({
   tabType,
   currentData,
   onLoadSession,
+  onStartFresh,
   tabLabel = 'session',
   currentSessionId,
   onSessionChange,
@@ -253,7 +255,7 @@ export default function SessionSelector({
                   setShowSaveDropdown(false);
                   setShowSaveAsModal(true);
                 }}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3"
+                className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 border-b"
               >
                 <Plus className="w-4 h-4 text-gray-600" />
                 <div>
@@ -261,6 +263,27 @@ export default function SessionSelector({
                   <p className="text-xs text-gray-500">Save as a new named session</p>
                 </div>
               </button>
+              {onStartFresh && (
+                <button
+                  onClick={() => {
+                    setShowSaveDropdown(false);
+                    if (confirm('Start fresh? This will clear your current progress (unsaved changes will be lost).')) {
+                      onStartFresh();
+                      if (onSessionChange) {
+                        onSessionChange(null);
+                      }
+                      toast.success('Started fresh!');
+                    }
+                  }}
+                  className="w-full px-4 py-3 text-left hover:bg-red-50 flex items-center gap-3"
+                >
+                  <X className="w-4 h-4 text-red-500" />
+                  <div>
+                    <p className="font-medium text-red-600">Start Fresh</p>
+                    <p className="text-xs text-gray-500">Clear all and start over</p>
+                  </div>
+                </button>
+              )}
             </div>
           )}
         </div>
